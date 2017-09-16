@@ -7,12 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7D609B6F1F6B8438001F2A99 /* snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D609B6E1F6B8438001F2A99 /* snapshot.swift */; };
 		7DABC33F1F6A3FF5001FC6E8 /* libSystem.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 7DABC33E1F6A3FF5001FC6E8 /* libSystem.tbd */; };
 		7DB4452C1F6976F50002FFD6 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB4452B1F6976F50002FFD6 /* main.swift */; };
 		7DB445331F69770F0002FFD6 /* data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB445321F69770F0002FFD6 /* data.swift */; };
 		7DBB28A11F6CDCBE00365896 /* zig in CopyFiles */ = {isa = PBXBuildFile; fileRef = 7DB445281F6976F50002FFD6 /* zig */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		7DBB28A31F6D72F600365896 /* Repository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DBB28A21F6D72F600365896 /* Repository.swift */; };
+		7DBB28A51F6DAC6F00365896 /* ObjectId.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DBB28A41F6DAC6F00365896 /* ObjectId.swift */; };
+		7DBB28A71F6DB55A00365896 /* Errors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DBB28A61F6DB55A00365896 /* Errors.swift */; };
+		7DBB28A91F6DB5DA00365896 /* CommitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DBB28A81F6DB5DA00365896 /* CommitView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -29,7 +31,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		7D609B6E1F6B8438001F2A99 /* snapshot.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; lineEnding = 0; path = snapshot.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 		7DABC32A1F6A2DBD001FC6E8 /* libcommonCrypto.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcommonCrypto.tbd; path = usr/lib/system/libcommonCrypto.tbd; sourceTree = SDKROOT; };
 		7DABC32C1F6A2DE6001FC6E8 /* bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bridge.h; sourceTree = "<group>"; };
 		7DABC33E1F6A3FF5001FC6E8 /* libSystem.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libSystem.tbd; path = usr/lib/libSystem.tbd; sourceTree = SDKROOT; };
@@ -37,6 +38,9 @@
 		7DB4452B1F6976F50002FFD6 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		7DB445321F69770F0002FFD6 /* data.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; lineEnding = 0; path = data.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 		7DBB28A21F6D72F600365896 /* Repository.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Repository.swift; sourceTree = "<group>"; };
+		7DBB28A41F6DAC6F00365896 /* ObjectId.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ObjectId.swift; sourceTree = "<group>"; };
+		7DBB28A61F6DB55A00365896 /* Errors.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Errors.swift; sourceTree = "<group>"; };
+		7DBB28A81F6DB5DA00365896 /* CommitView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CommitView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -83,8 +87,10 @@
 				7DB4452B1F6976F50002FFD6 /* main.swift */,
 				7DB445321F69770F0002FFD6 /* data.swift */,
 				7DABC32C1F6A2DE6001FC6E8 /* bridge.h */,
-				7D609B6E1F6B8438001F2A99 /* snapshot.swift */,
 				7DBB28A21F6D72F600365896 /* Repository.swift */,
+				7DBB28A41F6DAC6F00365896 /* ObjectId.swift */,
+				7DBB28A61F6DB55A00365896 /* Errors.swift */,
+				7DBB28A81F6DB5DA00365896 /* CommitView.swift */,
 			);
 			path = zig;
 			sourceTree = "<group>";
@@ -149,9 +155,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				7DB4452C1F6976F50002FFD6 /* main.swift in Sources */,
+				7DBB28A71F6DB55A00365896 /* Errors.swift in Sources */,
 				7DB445331F69770F0002FFD6 /* data.swift in Sources */,
-				7D609B6F1F6B8438001F2A99 /* snapshot.swift in Sources */,
+				7DBB28A51F6DAC6F00365896 /* ObjectId.swift in Sources */,
 				7DBB28A31F6D72F600365896 /* Repository.swift in Sources */,
+				7DBB28A91F6DB5DA00365896 /* CommitView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

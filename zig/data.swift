@@ -8,13 +8,7 @@
 
 import Foundation
 
-enum ZigError : Error {
-  case DataError(String)
-}
-
-let ZigDir = "/tmp/zig"
-
-indirect enum Treeish : Sequence {
+indirect enum Treeish {
   case blob(content: Data)
   case tree(entries: Array<Entry>)
   case commit(parentId: Data?, author: Author, createdAt: Date, treeId: Data, message: String)
@@ -56,7 +50,7 @@ indirect enum Treeish : Sequence {
     }
   }
 
-  func debugDescription() -> String {
+  func description(repository: Repository) -> String {
     switch self {
     case let .blob(content):
       if content.count > 0 {
@@ -67,8 +61,7 @@ indirect enum Treeish : Sequence {
 
     case let .tree(entries):
       return entries.map { entry in
-        var mutableEntry = entry // TODO: this is gross
-        return "\(entry.permissions)\t\(mutableEntry.treeish.type())\t\(entry.treeishId.base16EncodedString())\t\(entry.name)\n"
+        return "\(entry.permissions)\t\(entry.treeish(repository: repository).type())\t\(entry.treeishId.base16EncodedString())\t\(entry.name)\n"
         }.joined()
       
     case let .commit(parentId, author, createdAt, treeId, message):
@@ -91,16 +84,12 @@ indirect enum Treeish : Sequence {
     }
   }
 
-  func makeIterator() -> TreeishIterator {
-    return TreeishIterator(self)
+  func writeObject(repository: Repository) {
+    repository.writeObject(treeish: self)
   }
 
-  func writeObject() {
-    zig.writeObject(treeish: self)
-  }
-
-  static func readObject(id: Data) -> Treeish? {
-    return zig.readObject(id: id)
+  static func readObject(id: Data, repository: Repository) -> Treeish? {
+    return repository.readObject(id: id)
   }
 
 
@@ -113,31 +102,14 @@ indirect enum Treeish : Sequence {
   }
 }
 
-struct TreeishIterator : IteratorProtocol {
-  var treeish: Treeish?
-  init(_ treeish: Treeish) {
-    self.treeish = treeish
-  }
-  mutating func next() -> Treeish? {
-    switch treeish {
-    case .some(.commit(let maybeParentId, _, _, _, _)):
-      return maybeParentId.flatMap { parentId in
-        treeish = readObject(id: parentId)
-        return treeish
-      }
-    default:
-      return nil
-    }
-  }
-}
-
 struct Entry {
   let permissions: Int
   var treeishId: Data
   let name: String
-  lazy var treeish: Treeish = {
-    return readObject(id: self.treeishId)!
-  }()
+
+  func treeish(repository: Repository) -> Treeish {
+    return repository.readObject(id: self.treeishId)!
+  }
 
   init(permissions: Int, treeishId: Data, name: String) {
     self.permissions = permissions
@@ -233,78 +205,6 @@ extension Treeish {
       }
     }
   }
-}
-
-extension Data {
-  func base16EncodedString() -> String {
-    return self.map { String(format: "%02hhx", $0) }.joined()
-  }
-}
-
-extension String {
-  func base16DecodedData() -> Data {
-    var data = Data()
-    let chs = Array(characters)
-    let ints = stride(from: 0, to: chs.count, by: 2).map { idx in
-      UInt8("\(chs[idx])\(chs[idx+1])", radix: 16)!
-    }
-    data.append(contentsOf: ints)
-    return data
-  }
-}
-
-func splitId(id: Data) -> (String, String) {
-  return (
-    Data(id.prefix(1)).base16EncodedString(),
-    Data(id.dropFirst(1)).base16EncodedString()
-  )
-}
-
-func getRepositoryRoot(startingAt cwd: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)) -> URL? {
-
-
-  if FileManager.default.fileExists(atPath: cwd.appendingPathComponent(".zig").path) {
-    return cwd
-  } else {
-    if cwd.deletingLastPathComponent().path == "/" {
-      return nil
-    }
-    return getRepositoryRoot(startingAt: cwd.deletingLastPathComponent())
-  }
-}
-
-func writeObject(treeish: Treeish) {
-  guard let rootDir = getRepositoryRoot() else { return }
-
-  let objectDir = rootDir.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
-
-  let (objIdPrefix, filename) = splitId(id: treeish.id)
-
-  let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
-  try! FileManager.default.createDirectory(
-    atPath: prefixedObjDir.path,
-    withIntermediateDirectories: true, attributes: nil
-  )
-
-  let fileURL = prefixedObjDir.appendingPathComponent(filename)
-  NSKeyedArchiver.archiveRootObject(
-    Treeish.ForCoding(treeish: treeish),
-    toFile: fileURL.path
-  )
-}
-
-func readObject(id: Data) -> Treeish? {
-  guard let rootDir = getRepositoryRoot() else { return nil }
-
-  let objectDir = rootDir.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
-
-  let (objIdPrefix, filename) = splitId(id: id)
-
-  let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
-
-  let fileURL = prefixedObjDir.appendingPathComponent(filename)
-  let coding = NSKeyedUnarchiver.unarchiveObject(withFile: fileURL.path) as? Treeish.ForCoding
-  return coding.flatMap { $0.treeish }
 }
 
 
