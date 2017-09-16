@@ -7,24 +7,36 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		7D609B6F1F6B8438001F2A99 /* snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D609B6E1F6B8438001F2A99 /* snapshot.swift */; };
+		7DABC33F1F6A3FF5001FC6E8 /* libSystem.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 7DABC33E1F6A3FF5001FC6E8 /* libSystem.tbd */; };
 		7DB4452C1F6976F50002FFD6 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB4452B1F6976F50002FFD6 /* main.swift */; };
+		7DB445331F69770F0002FFD6 /* data.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB445321F69770F0002FFD6 /* data.swift */; };
+		7DBB28A11F6CDCBE00365896 /* zig in CopyFiles */ = {isa = PBXBuildFile; fileRef = 7DB445281F6976F50002FFD6 /* zig */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		7DBB28A31F6D72F600365896 /* Repository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DBB28A21F6D72F600365896 /* Repository.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		7DB445261F6976F40002FFD6 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
+			buildActionMask = 12;
+			dstPath = /Users/mgadda/bin;
 			dstSubfolderSpec = 0;
 			files = (
+				7DBB28A11F6CDCBE00365896 /* zig in CopyFiles */,
 			);
-			runOnlyForDeploymentPostprocessing = 1;
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		7D609B6E1F6B8438001F2A99 /* snapshot.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; lineEnding = 0; path = snapshot.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
+		7DABC32A1F6A2DBD001FC6E8 /* libcommonCrypto.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libcommonCrypto.tbd; path = usr/lib/system/libcommonCrypto.tbd; sourceTree = SDKROOT; };
+		7DABC32C1F6A2DE6001FC6E8 /* bridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bridge.h; sourceTree = "<group>"; };
+		7DABC33E1F6A3FF5001FC6E8 /* libSystem.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libSystem.tbd; path = usr/lib/libSystem.tbd; sourceTree = SDKROOT; };
 		7DB445281F6976F50002FFD6 /* zig */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = zig; sourceTree = BUILT_PRODUCTS_DIR; };
 		7DB4452B1F6976F50002FFD6 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
+		7DB445321F69770F0002FFD6 /* data.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; lineEnding = 0; path = data.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
+		7DBB28A21F6D72F600365896 /* Repository.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Repository.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -32,17 +44,28 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7DABC33F1F6A3FF5001FC6E8 /* libSystem.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		7DABC3291F6A2DBD001FC6E8 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				7DABC33E1F6A3FF5001FC6E8 /* libSystem.tbd */,
+				7DABC32A1F6A2DBD001FC6E8 /* libcommonCrypto.tbd */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		7DB4451F1F6976F40002FFD6 = {
 			isa = PBXGroup;
 			children = (
 				7DB4452A1F6976F50002FFD6 /* zig */,
 				7DB445291F6976F50002FFD6 /* Products */,
+				7DABC3291F6A2DBD001FC6E8 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -58,6 +81,10 @@
 			isa = PBXGroup;
 			children = (
 				7DB4452B1F6976F50002FFD6 /* main.swift */,
+				7DB445321F69770F0002FFD6 /* data.swift */,
+				7DABC32C1F6A2DE6001FC6E8 /* bridge.h */,
+				7D609B6E1F6B8438001F2A99 /* snapshot.swift */,
+				7DBB28A21F6D72F600365896 /* Repository.swift */,
 			);
 			path = zig;
 			sourceTree = "<group>";
@@ -122,6 +149,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				7DB4452C1F6976F50002FFD6 /* main.swift in Sources */,
+				7DB445331F69770F0002FFD6 /* data.swift in Sources */,
+				7D609B6F1F6B8438001F2A99 /* snapshot.swift in Sources */,
+				7DBB28A31F6D72F600365896 /* Repository.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -222,7 +252,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				DEVELOPMENT_TEAM = 2Y6GJ8UUTH;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SDKROOT)/usr/lib/system",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = zig/bridge.h;
 				SWIFT_VERSION = 3.0;
 			};
 			name = Debug;
@@ -231,7 +266,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				DEVELOPMENT_TEAM = 2Y6GJ8UUTH;
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(SDKROOT)/usr/lib/system",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_OBJC_BRIDGING_HEADER = zig/bridge.h;
 				SWIFT_VERSION = 3.0;
 			};
 			name = Release;
@@ -255,6 +295,7 @@
 				7DB445311F6976F50002FFD6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
