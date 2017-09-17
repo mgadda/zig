@@ -29,7 +29,7 @@ struct Author {
   let email: String
 }
 
-class Commit : ObjectLike {
+class Commit : NSObject, ObjectLike {
 
   let parentId: Data?
   let author: Author
@@ -96,7 +96,7 @@ class Commit : ObjectLike {
   }
 }
 
-class Blob : ObjectLike {
+class Blob : NSObject, ObjectLike {
   let content: Data
 
   var type: String = "blob"
@@ -130,8 +130,8 @@ class Blob : ObjectLike {
   }
 }
 
-class Tree : ObjectLike {
-  let entries: Array<Entries>
+class Tree : NSObject, ObjectLike {
+  let entries: [Entry]
 
   var type: String = "tree"
   var id: Data {
@@ -140,7 +140,7 @@ class Tree : ObjectLike {
 
     entries.forEach { entry in
       treeData.append(contentsOf: entry.name.data(using: .utf8)!)
-      treeData.append(entry.treeishId)
+      treeData.append(entry.objectId)
       var perms = entry.permissions
       treeData.append(Data(bytes: &perms, count: MemoryLayout.size(ofValue: entry.permissions)))
     }
@@ -149,7 +149,7 @@ class Tree : ObjectLike {
 
   func description(repository: Repository, verbose: Bool) -> String {
     return entries.map { entry in
-      return "\(entry.permissions)\t\(entry.treeish(repository: repository).type())\t\(entry.treeishId.base16EncodedString())\t\(entry.name)\n"
+      return "\(entry.permissions)\t\(entry.object(repository: repository).type)\t\(entry.objectId.base16EncodedString())\t\(entry.name)\n"
       }.joined()
   }
 
@@ -164,23 +164,23 @@ class Tree : ObjectLike {
 
   func encode(with aCoder: NSCoder) {
     aCoder.encode("tree", forKey: "type")
-    aCoder.encode(entries.map { Entry.ForCoding($0) }, forKey: "entries")
+    aCoder.encode(entries, forKey: "entries")
   }
 
 }
 
-class Entry : NSCoding {
+class Entry : NSObject, NSCoding {
   let permissions: Int
-  var treeishId: Data
+  var objectId: Data
   let name: String
 
-  func treeish(repository: Repository) -> Treeish {
-    return repository.readObject(id: self.treeishId)!
+  func object(repository: Repository) -> ObjectLike {
+    return repository.readObject2(id: self.objectId)!
   }
 
-  init(permissions: Int, treeishId: Data, name: String) {
+  init(permissions: Int, objectId: Data, name: String) {
     self.permissions = permissions
-    self.treeishId = treeishId
+    self.objectId = objectId
     self.name = name
   }
 
@@ -189,13 +189,13 @@ class Entry : NSCoding {
     guard let name = aDecoder.decodeObject(forKey: "name") as? String else { return nil }
     guard let id = aDecoder.decodeObject(forKey: "treeishId") as? Data else { return nil }
     self.name = name
-    self.treeishId = id
+    self.objectId = id
   }
 
   func encode(with aCoder: NSCoder) {
     aCoder.encode(permissions, forKey: "permissions")
     aCoder.encode(name, forKey: "name")
-    aCoder.encode(treeishId, forKey: "treeishId")
+    aCoder.encode(objectId, forKey: "treeishId")
   }
 }
 

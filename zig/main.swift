@@ -34,7 +34,7 @@ switch (CommandLine.argc, CommandLine.arguments[1]) {
 
     let filename = CommandLine.arguments[2]
     let object = repo.hashFile(filename: filename)
-    print(object.description(repository: repo))
+    print(object.description(repository: repo, verbose: true))
     break
 
   case (3, "cat"):
@@ -43,7 +43,7 @@ switch (CommandLine.argc, CommandLine.arguments[1]) {
     }
 
     let id = CommandLine.arguments[2].base16DecodedData()
-    let desc = repo.readObject(id: id).map { $0.description(repository: repo) } ?? "Unknown object"
+    let desc = repo.readObject2(id: id).map { $0.description(repository: repo, verbose: true) } ?? "Unknown object"
     print(desc)
 
   case (2, "snapshot"):

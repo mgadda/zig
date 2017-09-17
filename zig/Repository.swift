@@ -49,21 +49,21 @@ class Repository {
     return nil
   }
 
-  func writeObject(treeish: Treeish) {
-    let (objIdPrefix, filename) = splitId(id: treeish.id)
-
-    let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
-    try! FileManager.default.createDirectory(
-      atPath: prefixedObjDir.path,
-      withIntermediateDirectories: true, attributes: nil
-    )
-
-    let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    NSKeyedArchiver.archiveRootObject(
-      Treeish.ForCoding(treeish: treeish),
-      toFile: fileURL.path
-    )
-  }
+//  func writeObject(treeish: Treeish) {
+//    let (objIdPrefix, filename) = splitId(id: treeish.id)
+//
+//    let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
+//    try! FileManager.default.createDirectory(
+//      atPath: prefixedObjDir.path,
+//      withIntermediateDirectories: true, attributes: nil
+//    )
+//
+//    let fileURL = prefixedObjDir.appendingPathComponent(filename)
+//    NSKeyedArchiver.archiveRootObject(
+//      Treeish.ForCoding(treeish: treeish),
+//      toFile: fileURL.path
+//    )
+//  }
 
   func writeObject2(object: ObjectLike) {
     let (objIdPrefix, filename) = splitId(id: object.id)
@@ -78,17 +78,17 @@ class Repository {
     NSKeyedArchiver.archiveRootObject(object, toFile: fileURL.path)
   }
 
-  func readObject(id: Data) -> Treeish? {
-    let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
-
-    let (objIdPrefix, filename) = splitId(id: id)
-
-    let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
-
-    let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    let coding = NSKeyedUnarchiver.unarchiveObject(withFile: fileURL.path) as? Treeish.ForCoding
-    return coding.flatMap { $0.treeish }
-  }
+//  func readObject(id: Data) -> Treeish? {
+//    let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
+//
+//    let (objIdPrefix, filename) = splitId(id: id)
+//
+//    let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
+//
+//    let fileURL = prefixedObjDir.appendingPathComponent(filename)
+//    let coding = NSKeyedUnarchiver.unarchiveObject(withFile: fileURL.path) as? Treeish.ForCoding
+//    return coding.flatMap { $0.treeish }
+//  }
 
   func readObject2(id: Data) -> ObjectLike? {
     let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
@@ -101,29 +101,34 @@ class Repository {
     return NSKeyedUnarchiver.unarchiveObject(withFile: fileURL.path) as? ObjectLike
   }
 
-  func hashFile(filename: String) -> Treeish {
+  func hashFile(filename: String) -> ObjectLike {
     // TODO: check that file exists and return nil if not
     let path = URL(fileURLWithPath: Repository.fileman.currentDirectoryPath)
       .appendingPathComponent(filename)
 
-    let object: Treeish
+    let object: ObjectLike
     if path.hasDirectoryPath {
       object = _snapshot(startingAt: path)
     } else {
       let content = try! Data(contentsOf: path)
-      object = Treeish.blob(content: content)
-      writeObject(treeish: object)
+      object = Blob(content: content)
+      writeObject2(object: object)
     }
     return object
   }
 
-  func snapshot() -> Treeish {
+  func snapshot() -> ObjectLike {
     let topLevelTree = _snapshot(startingAt: rootUrl)
     print("Snapshot message: ", terminator: "")
     let msg = readLine()!
-    let commit = Treeish.commit(parentId: getHeadId(), author: Author(name: "Matt Gadda", email: "mgadda@gmail.com"), createdAt: Date(), treeId: topLevelTree.id, message: msg)
-    writeObject(treeish: commit)
+    let commit = Commit(
+      parentId: getHeadId(),
+      author: Author(name: "Matt Gadda", email: "mgadda@gmail.com"),
+      createdAt: Date(),
+      treeId: topLevelTree.id,
+      message: msg)
 
+    writeObject2(object: commit)
 
     let HEADUrl = rootUrl.appendingPathComponent(".zig").appendingPathComponent("HEAD")
     if let file = FileHandle(forUpdatingAtPath: HEADUrl.path) {
@@ -136,27 +141,27 @@ class Repository {
     return topLevelTree
   }
 
-  private func _snapshot(startingAt dir: URL) -> Treeish {
+  private func _snapshot(startingAt dir: URL) -> ObjectLike {
     let urls = try! FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [], options: FileManager.DirectoryEnumerationOptions.skipsHiddenFiles)
 
     let entries = urls.map { (url: URL) -> Entry in
       let attributes = try! FileManager.default.attributesOfItem(atPath: url.path)
       let perms = attributes[FileAttributeKey.posixPermissions] as? Int ?? 0
 
-      let treeish: Treeish
+      let object: ObjectLike
       if url.hasDirectoryPath {
 
         // recurse to produce treeish
-        treeish = _snapshot(startingAt: url)
+        object = _snapshot(startingAt: url)
       } else {
-        treeish = Treeish.blob(content: try! Data(contentsOf: url))
+        object = Blob(content: try! Data(contentsOf: url))
       }
-      writeObject(treeish: treeish)
-      return Entry(permissions: perms, treeishId: treeish.id, name: url.lastPathComponent)
+      writeObject2(object: object)
+      return Entry(permissions: perms, objectId: object.id, name: url.lastPathComponent)
     }
 
-    let topLevelTree = Treeish.tree(entries: entries)
-    writeObject(treeish: topLevelTree)
+    let topLevelTree = Tree(entries: entries)
+    writeObject2(object: topLevelTree)
     return topLevelTree
   }
 
