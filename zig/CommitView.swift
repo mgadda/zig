@@ -36,7 +36,7 @@ struct CommitIterator : IteratorProtocol {
   mutating func next() -> Commit? {
     guard
       let nextObjectId = maybeNextObjectId,
-      let object = repository.readObject2(id: nextObjectId) else {
+      let object = repository.readObject(id: nextObjectId) else {
         return nil
     }
 

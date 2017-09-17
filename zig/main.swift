@@ -43,7 +43,7 @@ switch (CommandLine.argc, CommandLine.arguments[1]) {
     }
 
     let id = CommandLine.arguments[2].base16DecodedData()
-    let desc = repo.readObject2(id: id).map { $0.description(repository: repo, verbose: true) } ?? "Unknown object"
+    let desc = repo.readObject(id: id).map { $0.description(repository: repo, verbose: true) } ?? "Unknown object"
     print(desc)
 
   case (2, "snapshot"):

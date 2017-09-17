@@ -49,7 +49,7 @@ class Repository {
     return nil
   }
 
-  func writeObject2(object: ObjectLike) {
+  func writeObject(object: ObjectLike) {
     let (objIdPrefix, filename) = splitId(id: object.id)
 
     let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
@@ -62,7 +62,7 @@ class Repository {
     NSKeyedArchiver.archiveRootObject(object, toFile: fileURL.path)
   }
 
-  func readObject2(id: Data) -> ObjectLike? {
+  func readObject(id: Data) -> ObjectLike? {
     let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
 
     let (objIdPrefix, filename) = splitId(id: id)
@@ -84,7 +84,7 @@ class Repository {
     } else {
       let content = try! Data(contentsOf: path)
       object = Blob(content: content)
-      writeObject2(object: object)
+      writeObject(object: object)
     }
     return object
   }
@@ -100,7 +100,7 @@ class Repository {
       treeId: topLevelTree.id,
       message: msg)
 
-    writeObject2(object: commit)
+    writeObject(object: commit)
 
     let HEADUrl = rootUrl.appendingPathComponent(".zig").appendingPathComponent("HEAD")
     if let file = FileHandle(forUpdatingAtPath: HEADUrl.path) {
@@ -128,12 +128,12 @@ class Repository {
       } else {
         object = Blob(content: try! Data(contentsOf: url))
       }
-      writeObject2(object: object)
+      writeObject(object: object)
       return Entry(permissions: perms, objectId: object.id, name: url.lastPathComponent)
     }
 
     let topLevelTree = Tree(entries: entries)
-    writeObject2(object: topLevelTree)
+    writeObject(object: topLevelTree)
     return topLevelTree
   }
 

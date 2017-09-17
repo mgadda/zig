@@ -175,7 +175,7 @@ class Entry : NSObject, NSCoding {
   let name: String
 
   func object(repository: Repository) -> ObjectLike {
-    return repository.readObject2(id: self.objectId)!
+    return repository.readObject(id: self.objectId)!
   }
 
   init(permissions: Int, objectId: Data, name: String) {
