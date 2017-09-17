@@ -1,6 +1,9 @@
+* Refactor commit into its own class
+* Refactor snapshot to accept commit id as parent id (needed for headless commits)
 * .zig/config - author
 * .zignore
-* checkout [commit]
+* zig diff
+* zig checkout <commit>
 * branches
 * resolve (rev-parse)
 * tags

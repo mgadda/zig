@@ -50,7 +50,7 @@ indirect enum Treeish {
     }
   }
 
-  func description(repository: Repository) -> String {
+  func description(repository: Repository, verbose: Bool = false) -> String {
     switch self {
     case let .blob(content):
       if content.count > 0 {
@@ -66,12 +66,14 @@ indirect enum Treeish {
       
     case let .commit(parentId, author, createdAt, treeId, message):
       var out: String
-      out = "Commit: \(self.id.base16EncodedString())\n"
-      out += "Tree: \(treeId.base16EncodedString())"
-      out += "\nParent: " + (parentId?.base16EncodedString() ?? "(no parent)") + "\n"
-      out += "\(author.name) \(author.email)\n"
-      out += createdAt.debugDescription + "\n\n"
-      out += message + "\n"
+      out = "commit: \(self.id.base16EncodedString())\n".withANSIColor(color: .yellow)
+      if verbose {
+        out += "Tree: \(treeId.base16EncodedString())"
+        out += "\nParent: " + (parentId?.base16EncodedString() ?? "(no parent)") + "\n"
+      }
+      out += "Author: \(author.name) \(author.email)\n"
+      out += "Date: " + createdAt.debugDescription + "\n\n"
+      out += "  " + message + "\n"
       return out
     }
   }

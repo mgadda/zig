@@ -47,12 +47,6 @@ switch (CommandLine.argc, CommandLine.arguments[1]) {
     print(desc)
 
   case (2, "snapshot"):
-
-    // find differences between top-level tree and working dir
-    // create new tree as appropriate
-    // create commit pointing to tree
-
-
     guard let repo = Repository() else {
       exit(1)
     }
@@ -65,10 +59,20 @@ switch (CommandLine.argc, CommandLine.arguments[1]) {
       exit(1)
     }
 
+    let pipe = Pipe()
+    let less = Process()
+    less.launchPath = "/usr/bin/env"
+    less.arguments = ["less", "-R", "-X"]
+    less.standardInput = pipe
+
     for commit in repo.commits {
-      print(commit.description(repository: repo))
+      pipe.fileHandleForWriting.write(commit.description(repository: repo).data(using: .utf8)!)
     }
-    break
+
+    less.launch()
+    pipe.fileHandleForWriting.closeFile()
+
+  break
 
   default:
     printHelp()
