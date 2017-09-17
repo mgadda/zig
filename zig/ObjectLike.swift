@@ -187,7 +187,7 @@ class Entry : NSObject, NSCoding {
   required init?(coder aDecoder: NSCoder) {
     self.permissions = aDecoder.decodeInteger(forKey: "permissions")
     guard let name = aDecoder.decodeObject(forKey: "name") as? String else { return nil }
-    guard let id = aDecoder.decodeObject(forKey: "treeishId") as? Data else { return nil }
+    guard let id = aDecoder.decodeObject(forKey: "objectId") as? Data else { return nil }
     self.name = name
     self.objectId = id
   }
@@ -195,7 +195,7 @@ class Entry : NSObject, NSCoding {
   func encode(with aCoder: NSCoder) {
     aCoder.encode(permissions, forKey: "permissions")
     aCoder.encode(name, forKey: "name")
-    aCoder.encode(objectId, forKey: "treeishId")
+    aCoder.encode(objectId, forKey: "objectId")
   }
 }
 

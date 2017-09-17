@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		7DABC33F1F6A3FF5001FC6E8 /* libSystem.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = 7DABC33E1F6A3FF5001FC6E8 /* libSystem.tbd */; };
 		7DB4452C1F6976F50002FFD6 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB4452B1F6976F50002FFD6 /* main.swift */; };
-		7DB445331F69770F0002FFD6 /* Treeish.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB445321F69770F0002FFD6 /* Treeish.swift */; };
 		7DBB28A11F6CDCBE00365896 /* zig in CopyFiles */ = {isa = PBXBuildFile; fileRef = 7DB445281F6976F50002FFD6 /* zig */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		7DBB28A31F6D72F600365896 /* Repository.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DBB28A21F6D72F600365896 /* Repository.swift */; };
 		7DBB28A51F6DAC6F00365896 /* ObjectId.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DBB28A41F6DAC6F00365896 /* ObjectId.swift */; };
@@ -38,13 +37,12 @@
 		7DABC33E1F6A3FF5001FC6E8 /* libSystem.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = libSystem.tbd; path = usr/lib/libSystem.tbd; sourceTree = SDKROOT; };
 		7DB445281F6976F50002FFD6 /* zig */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = zig; sourceTree = BUILT_PRODUCTS_DIR; };
 		7DB4452B1F6976F50002FFD6 /* main.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
-		7DB445321F69770F0002FFD6 /* Treeish.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; lineEnding = 0; path = Treeish.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
-		7DBB28A21F6D72F600365896 /* Repository.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Repository.swift; sourceTree = "<group>"; };
+		7DBB28A21F6D72F600365896 /* Repository.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; lineEnding = 0; path = Repository.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 		7DBB28A41F6DAC6F00365896 /* ObjectId.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ObjectId.swift; sourceTree = "<group>"; };
 		7DBB28A61F6DB55A00365896 /* Errors.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Errors.swift; sourceTree = "<group>"; };
 		7DBB28A81F6DB5DA00365896 /* CommitView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = CommitView.swift; sourceTree = "<group>"; };
 		7DBB28AA1F6DE86300365896 /* ANSIColor.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ANSIColor.swift; sourceTree = "<group>"; };
-		7DBB28AC1F6E267200365896 /* ObjectLike.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ObjectLike.swift; sourceTree = "<group>"; };
+		7DBB28AC1F6E267200365896 /* ObjectLike.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; lineEnding = 0; path = ObjectLike.swift; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.swift; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -89,7 +87,6 @@
 			isa = PBXGroup;
 			children = (
 				7DB4452B1F6976F50002FFD6 /* main.swift */,
-				7DB445321F69770F0002FFD6 /* Treeish.swift */,
 				7DABC32C1F6A2DE6001FC6E8 /* bridge.h */,
 				7DBB28A21F6D72F600365896 /* Repository.swift */,
 				7DBB28A41F6DAC6F00365896 /* ObjectId.swift */,
@@ -163,7 +160,6 @@
 				7DB4452C1F6976F50002FFD6 /* main.swift in Sources */,
 				7DBB28A71F6DB55A00365896 /* Errors.swift in Sources */,
 				7DBB28AB1F6DE86300365896 /* ANSIColor.swift in Sources */,
-				7DB445331F69770F0002FFD6 /* Treeish.swift in Sources */,
 				7DBB28A51F6DAC6F00365896 /* ObjectId.swift in Sources */,
 				7DBB28A31F6D72F600365896 /* Repository.swift in Sources */,
 				7DBB28A91F6DB5DA00365896 /* CommitView.swift in Sources */,
