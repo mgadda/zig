@@ -8,6 +8,8 @@
 
 import Foundation
 
+/*
+ 
 indirect enum Treeish {
   case blob(content: Data)
   case tree(entries: Array<Entry>)
@@ -104,53 +106,6 @@ indirect enum Treeish {
   }
 }
 
-struct Entry {
-  let permissions: Int
-  var treeishId: Data
-  let name: String
-
-  func treeish(repository: Repository) -> Treeish {
-    return repository.readObject(id: self.treeishId)!
-  }
-
-  init(permissions: Int, treeishId: Data, name: String) {
-    self.permissions = permissions
-    self.treeishId = treeishId
-    self.name = name
-  }
-}
-
-extension Entry {
-  class ForCoding : NSObject, NSCoding {
-    var entry: Entry?
-    init(_ anEntry: Entry) {
-      self.entry = anEntry
-    }
-
-    required init?(coder aDecoder: NSCoder) {      
-      let perms = aDecoder.decodeInteger(forKey: "permissions")
-      guard let name = aDecoder.decodeObject(forKey: "name") as? String else { return }
-      guard let id = aDecoder.decodeObject(forKey: "treeishId") as? Data else { return }
-      entry = Entry(permissions: perms, treeishId: id, name: name)
-    }
-
-    func encode(with aCoder: NSCoder) {
-      entry.map {
-        aCoder.encode($0.permissions, forKey: "permissions")
-        aCoder.encode($0.name, forKey: "name")
-        aCoder.encode($0.treeishId, forKey: "treeishId")
-      }
-
-    }
-
-  }
-}
-
-struct Author {
-  let name: String
-  let email: String
-}
-
 extension Treeish {
   class ForCoding : NSObject, NSCoding {
     var treeish: Treeish?
@@ -209,5 +164,5 @@ extension Treeish {
   }
 }
 
-
+*/
 

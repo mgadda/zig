@@ -65,6 +65,19 @@ class Repository {
     )
   }
 
+  func writeObject2(object: ObjectLike) {
+    let (objIdPrefix, filename) = splitId(id: object.id)
+
+    let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
+    try! FileManager.default.createDirectory(
+      atPath: prefixedObjDir.path,
+      withIntermediateDirectories: true, attributes: nil
+    )
+
+    let fileURL = prefixedObjDir.appendingPathComponent(filename)
+    NSKeyedArchiver.archiveRootObject(object, toFile: fileURL.path)
+  }
+
   func readObject(id: Data) -> Treeish? {
     let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
 
@@ -75,6 +88,17 @@ class Repository {
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
     let coding = NSKeyedUnarchiver.unarchiveObject(withFile: fileURL.path) as? Treeish.ForCoding
     return coding.flatMap { $0.treeish }
+  }
+
+  func readObject2(id: Data) -> ObjectLike? {
+    let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
+
+    let (objIdPrefix, filename) = splitId(id: id)
+
+    let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
+
+    let fileURL = prefixedObjDir.appendingPathComponent(filename)
+    return NSKeyedUnarchiver.unarchiveObject(withFile: fileURL.path) as? ObjectLike
   }
 
   func hashFile(filename: String) -> Treeish {
