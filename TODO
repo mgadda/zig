@@ -1,9 +1,10 @@
 * Refactor commit into its own class
 * Refactor snapshot to accept commit id as parent id (needed for headless commits)
 * .zig/config - author
+* zig diff (working tree against commit or HEAD)
 * .zignore
-* zig diff
 * zig checkout <commit>
 * branches
 * resolve (rev-parse)
 * tags
+* CommitView / TreeishIterator should return Commits, not Treeishe

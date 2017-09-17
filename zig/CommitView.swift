@@ -14,37 +14,38 @@ class CommitView : Sequence {
     self.repository = repository
   }
 
-  func makeIterator() -> TreeishIterator {
+  func makeIterator() -> CommitIterator {
     if let headId = repository.getHeadId() {
-        return TreeishIterator(headId, repository: repository)
+        return CommitIterator(headId, repository: repository)
     } else {
       print("No commits yet")
-      return TreeishIterator(nil, repository: repository)
+      return CommitIterator(nil, repository: repository)
     }
   }
 }
 
-struct TreeishIterator : IteratorProtocol {
-  var maybeNextTreeishId: Data?
+struct CommitIterator : IteratorProtocol {
+  var maybeNextObjectId: Data?
   let repository: Repository
 
-  init(_ treeishId: Data?, repository: Repository) {
-    self.maybeNextTreeishId = treeishId
+  init(_ objectId: Data?, repository: Repository) {
+    self.maybeNextObjectId = objectId
     self.repository = repository
   }
   
-  mutating func next() -> Treeish? {
-    guard let nextTreeishId = maybeNextTreeishId else {
-      return nil
-    }
-
-    let commit = repository.readObject(id: nextTreeishId)
-    switch commit {
-      case .some(.commit(let parentId, _, _, _, _)):
-        maybeNextTreeishId = parentId
-        return commit
-      default:
+  mutating func next() -> Commit? {
+    guard
+      let nextObjectId = maybeNextObjectId,
+      let object = repository.readObject(id: nextObjectId) else {
         return nil
     }
+
+    switch object {
+      case let commit as Commit:
+        maybeNextObjectId = commit.parentId
+        return commit
+      default: break
+    }
+    return nil
   }
 }
