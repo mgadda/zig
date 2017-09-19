@@ -22,7 +22,7 @@
 		7DB445261F6976F40002FFD6 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 12;
-			dstPath = /Users/mgadda/bin;
+			dstPath = "~/bin";
 			dstSubfolderSpec = 0;
 			files = (
 				7DBB28A11F6CDCBE00365896 /* zig in CopyFiles */,
