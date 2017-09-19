@@ -72,6 +72,17 @@ switch (CommandLine.argc, CommandLine.arguments[1]) {
     less.launch()
     pipe.fileHandleForWriting.closeFile()
 
+  case (3, "resolve"):
+    guard let repo = Repository() else {
+      exit(1)
+    }
+    guard let resolved = repo.resolve(ref: CommandLine.arguments[2]) else {
+      print("Could not resolve ref")
+      exit(1)
+    }
+
+    print(resolved.description())
+
   break
 
   default:
