@@ -186,8 +186,22 @@ class Repository {
     return topLevelTree
   }
 
-  func checkout(branchName: String) {
+  func checkout(ref: Reference) {
+    // resolve ref into commit
+    // read commit object
+    // checkout top level tree contains recursively
+    // don't delete things that haven't changed
+    guard case let .commit(commitId) = resolve(ref) else {
+      print("This is not a commit")
+      return
+    }
 
+    guard let commit as? Commit = readObject(id: commitId) else {
+      print("This not a commit object")
+      return
+    }
+
+    
   }
 
   func getHEADContents() -> String {
