@@ -22,7 +22,7 @@ if CommandLine.argc < 2 {
 
 switch (CommandLine.argc, CommandLine.arguments[1]) {
   case (2, "init"):
-    guard let repo = Repository.initRepo() else {
+    guard let _ = Repository.initRepo() else {
       exit(1)
     }
     break

@@ -41,7 +41,9 @@ class Repository {
     }
   }
 
-  private class func findRepositoryRoot(startingAt cwd: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)) -> URL? {
+  private class func findRepositoryRoot(
+    startingAt cwd: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+  ) -> URL? {
     if FileManager.default.fileExists(atPath: cwd.appendingPathComponent(".zig").path) {
       return cwd
     } else {
@@ -50,14 +52,6 @@ class Repository {
       }
       return findRepositoryRoot(startingAt: cwd.deletingLastPathComponent())
     }
-  }
-
-  func getHeadId() -> Data? {
-    let HEADUrl = rootUrl.appendingPathComponent(".zig").appendingPathComponent("HEAD")
-    if let file = FileHandle(forUpdatingAtPath: HEADUrl.path) {
-      return String(data: file.readDataToEndOfFile(), encoding: .utf8)?.base16DecodedData()
-    }
-    return nil
   }
 
   func writeObject(object: ObjectLike) {
@@ -102,11 +96,22 @@ class Repository {
   }
 
   func snapshot() -> ObjectLike {
-    let topLevelTree = _snapshot(startingAt: rootUrl)
+    // TODO: CTRL+C to bail out
     print("Snapshot message: ", terminator: "")
     let msg = readLine()!
+
+    let topLevelTree = _snapshot(startingAt: rootUrl)
+
+    let headContents = getHEADContents()
+    let parentId: Data? = resolve(.unknown(headContents)).flatMap {
+      guard case let .commit(id) = $0 else {
+        return nil
+      }
+      return id.base16DecodedData()
+    }
+
     let commit = Commit(
-      parentId: getHeadId(),
+      parentId: parentId,
       author: Author(name: "Matt Gadda", email: "mgadda@gmail.com"),
       createdAt: Date(),
       treeId: topLevelTree.id,
@@ -114,25 +119,28 @@ class Repository {
 
     writeObject(object: commit)
 
-    // TODO:
-    // if HEAD is detached (i.e. it's a commit), we have to update it now
-    // if it contains a ref, update that ref instead
-    updateHEAD(commitId: commit.id)
+    switch identifyUnknown(headContents) {
+    case let .branch(name)?:
+      // TODO: fix up this crazy data conversion!
+      trounce(branchHeadsUrl.appendingPathComponent(name), content: commit.id.base16EncodedString().data(using: .utf8)!)
+      break
 
+    default:
+      // head was garbage, empty, or a commit id
+      updateHEAD(commitId: commit.id)
+
+      break
+    }
     return topLevelTree
   }
 
   /*
    if it's a branch, write "refs/heads/[branch]" into HEAD
-   if it's a tag, write "refs/tags/[branch]" into HEAD
    if it's a commit, write base 16 encoded string into HEAD
+   if it's a tag, do same as commit
    */
   func updateHEAD(branch: String) {
     updateHEAD(content: "refs/heads/\(branch)".data(using: .utf8)!)
-  }
-
-  func updateHEAD(tag: String) {
-    updateHEAD(content: "refs/tags/\(tag)".data(using: .utf8)!)
   }
 
   func updateHEAD(commitId: Data) {
@@ -140,12 +148,17 @@ class Repository {
   }
 
   private func updateHEAD(content: Data) {
-    if let file = FileHandle(forUpdatingAtPath: HEADUrl.path) {
+    trounce(HEADUrl, content: content)
+  }
+
+  // Overwrite file with new content, create it if it doesn't already exist
+  private func trounce(_ url: URL, content: Data) {
+    if let file = FileHandle(forUpdatingAtPath: url.path) {
       file.truncateFile(atOffset: 0)
       file.write(content)
       file.closeFile()
     } else {
-      Repository.fileman.createFile(atPath: HEADUrl.path, contents: content, attributes: nil)
+      Repository.fileman.createFile(atPath: url.path, contents: content, attributes: nil)
     }
   }
 
@@ -171,6 +184,10 @@ class Repository {
     let topLevelTree = Tree(entries: entries)
     writeObject(object: topLevelTree)
     return topLevelTree
+  }
+
+  func checkout(branchName: String) {
+
   }
 
   func getHEADContents() -> String {
@@ -199,7 +216,16 @@ class Repository {
   }
 
   private func parseSymbolicRef(ref: String) -> Reference? {
-    var refComponents = ref.characters.split(separator: "/").map(String.init)
+    guard !ref.isEmpty else {
+      return nil
+    }
+
+    var refComponents = ref.characters.split(
+      separator: "/",
+      maxSplits: 2,
+      omittingEmptySubsequences: true
+    ).map(String.init)
+    
     let tagOrBranchName = refComponents.popLast()!
 
     if refComponents.last == "heads" {
@@ -220,6 +246,15 @@ class Repository {
     }
   }
 
+  private func identifyUnknown(_ str: String) -> Reference? {
+    if str == "HEAD" {
+      return .head
+    }
+    if let _ = str.range(of: "^[a-fA-F0-9]{6,40}$", options: .regularExpression) {
+      return .commit(str)
+    }
+    return parseSymbolicRef(ref: str)
+  }
   // Attempt to resolve a String into something that
   // represents a commit object.
   // If full is false, resolve will stop only one step from the input.
@@ -242,18 +277,10 @@ class Repository {
   // @HEAD -> @refs/heads/master
   // @HEAD -> @refs/tag/v0.1.0
   //
-  private func resolve(_ ref: Reference) -> Reference? {
+  internal func resolve(_ ref: Reference) -> Reference? {
     switch ref {
     case let .unknown(str):
-      if str == "HEAD" {
-        return resolve(.head)
-      }
-      if let _ = str.range(of: "^[a-fA-F0-9]{6,40}$", options: .regularExpression) {
-        return resolve(.commit(str))
-      }
-      return parseSymbolicRef(ref: str).flatMap {
-        return resolve($0)
-      }
+      return identifyUnknown(str).flatMap { resolve($0) }
 
     case .head:
       return resolve(.unknown(getHEADContents()))

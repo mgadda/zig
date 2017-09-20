@@ -15,8 +15,8 @@ class CommitView : Sequence {
   }
 
   func makeIterator() -> CommitIterator {
-    if let headId = repository.getHeadId() {
-        return CommitIterator(headId, repository: repository)
+    if case let .commit(headId)? = repository.resolve(.head) {
+        return CommitIterator(headId.base16DecodedData(), repository: repository)
     } else {
       print("No commits yet")
       return CommitIterator(nil, repository: repository)
