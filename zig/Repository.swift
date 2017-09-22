@@ -186,23 +186,30 @@ class Repository {
     return topLevelTree
   }
 
-  func checkout(ref: Reference) {
-    // resolve ref into commit
-    // read commit object
-    // checkout top level tree contains recursively
-    // don't delete things that haven't changed
-    guard case let .commit(commitId) = resolve(ref) else {
-      print("This is not a commit")
-      return
-    }
-
-    guard let commit as? Commit = readObject(id: commitId) else {
-      print("This not a commit object")
-      return
-    }
-
-    
-  }
+//  func checkout(ref: Reference) {
+//    // resolve ref into commit
+//    // read commit object
+//    // checkout top level tree contains recursively
+//    // don't delete things that haven't changed
+//    guard case let .commit(commitId) = resolve(ref) else {
+//      print("This is not a commit")
+//      return
+//    }
+//
+//    guard let commit as? Commit = readObject(id: commitId) else {
+//      print("This not a commit object")
+//      return
+//    }
+//  }
+//
+//  private func changeSet() -> (removed: Set<Entry>, added: Set<Entry>, changed: Set<Entry>) {
+//    let tree: Tree
+//    let tree2: Tree
+//
+//    let left = Set(tree.entries)
+//    let right = Set(tree2.entries)
+//
+//  }
 
   func getHEADContents() -> String {
     let headContents = try! Data(contentsOf: HEADUrl)

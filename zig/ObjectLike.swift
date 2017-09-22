@@ -8,7 +8,7 @@
 
 import Foundation
 
-protocol ObjectLike : NSCoding {
+protocol ObjectLike {
   var type: String { get }
   var id: Data { get }
   func description(repository: Repository, verbose: Bool) -> String
@@ -24,12 +24,12 @@ extension ObjectLike {
   }
 }
 
-struct Author {
+struct Author : Codable {
   let name: String
   let email: String
 }
 
-class Commit : NSObject, ObjectLike {
+struct Commit : ObjectLike, Codable {
 
   let parentId: Data?
   let author: Author
@@ -73,30 +73,9 @@ class Commit : NSObject, ObjectLike {
     return out
 
   }
-
-  // NSCoding
-  required init?(coder aDecoder: NSCoder) {
-    self.parentId = aDecoder.decodeObject(forKey: "parentId") as? Data
-    self.author = Author(
-      name: aDecoder.decodeObject(forKey: "author.name") as! String,
-      email: aDecoder.decodeObject(forKey: "author.email") as! String)
-    self.createdAt = aDecoder.decodeObject(forKey: "createdAt") as! Date
-    self.treeId = aDecoder.decodeObject(forKey: "treeId") as! Data
-    self.message = aDecoder.decodeObject(forKey: "message") as! String
-  }
-
-  func encode(with aCoder: NSCoder) {
-    aCoder.encode("commit", forKey: "type")
-    parentId.map { aCoder.encode($0, forKey: "parentId") }
-    aCoder.encode(author.name, forKey: "author.name")
-    aCoder.encode(author.email, forKey: "author.email")
-    aCoder.encode(createdAt, forKey: "createdAt")
-    aCoder.encode(treeId, forKey: "treeId")
-    aCoder.encode(message, forKey: "message")
-  }
 }
 
-class Blob : NSObject, ObjectLike {
+class Blob : ObjectLike, Codable {
   let content: Data
 
   var type: String = "blob"
@@ -118,20 +97,14 @@ class Blob : NSObject, ObjectLike {
       return "(empty)"
     }
   }
-
-  // NSCoding
-  required init?(coder aDecoder: NSCoder) {
-    self.content = aDecoder.decodeObject(forKey: "content") as! Data
-  }
-
-  func encode(with aCoder: NSCoder) {
-    aCoder.encode("blob", forKey: "type")
-    aCoder.encode(content, forKey: "content")
-  }
 }
 
-class Tree : NSObject, ObjectLike {
+struct Tree : ObjectLike, Codable {
   let entries: [Entry]
+
+  init(entries: [Entry]) {
+    self.entries = entries
+  }
 
   var type: String = "tree"
   var id: Data {
@@ -152,24 +125,9 @@ class Tree : NSObject, ObjectLike {
       return "\(entry.permissions)\t\(entry.object(repository: repository).type)\t\(entry.objectId.base16EncodedString())\t\(entry.name)\n"
       }.joined()
   }
-
-  init(entries: [Entry]) {
-    self.entries = entries
-  }
-
-  // NSCoding
-  required init?(coder aDecoder: NSCoder) {
-    self.entries = aDecoder.decodeObject(forKey: "entries") as! [Entry]
-  }
-
-  func encode(with aCoder: NSCoder) {
-    aCoder.encode("tree", forKey: "type")
-    aCoder.encode(entries, forKey: "entries")
-  }
-
 }
 
-class Entry : NSObject, NSCoding {
+struct Entry : Codable, Hashable {
   let permissions: Int
   var objectId: Data
   let name: String
@@ -178,24 +136,14 @@ class Entry : NSObject, NSCoding {
     return repository.readObject(id: self.objectId)!
   }
 
-  init(permissions: Int, objectId: Data, name: String) {
-    self.permissions = permissions
-    self.objectId = objectId
-    self.name = name
+  var hashValue: Int {
+    return permissions.hashValue ^ objectId.hashValue ^ name.hashValue
   }
 
-  required init?(coder aDecoder: NSCoder) {
-    self.permissions = aDecoder.decodeInteger(forKey: "permissions")
-    guard let name = aDecoder.decodeObject(forKey: "name") as? String else { return nil }
-    guard let id = aDecoder.decodeObject(forKey: "objectId") as? Data else { return nil }
-    self.name = name
-    self.objectId = id
-  }
-
-  func encode(with aCoder: NSCoder) {
-    aCoder.encode(permissions, forKey: "permissions")
-    aCoder.encode(name, forKey: "name")
-    aCoder.encode(objectId, forKey: "objectId")
+  static func ==(left: Entry, right: Entry) -> Bool {
+    return left.permissions == right.permissions &&
+      left.objectId == right.objectId &&
+      left.name == right.name
   }
 }
 
