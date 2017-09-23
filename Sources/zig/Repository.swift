@@ -85,7 +85,6 @@ class Repository {
     if data != nil {
       Repository.fileman.createFile(atPath: fileURL.path, contents: data, attributes: nil)
     }
-//    NSKeyedArchiver.archiveRootObject(object, toFile: fileURL.path)
   }
 
   private func loadObjectData(id: Data) -> Data? {
@@ -102,7 +101,7 @@ class Repository {
   func readObject<T: Decodable>(id: Data, type: T.Type) -> T? {
     let decoder = PropertyListDecoder()
     return loadObjectData(id: id).flatMap {
-      try? decoder.decode(type, from: $0)      
+      try? decoder.decode(type, from: $0)
     }
   }
 
@@ -276,7 +275,7 @@ class Repository {
       maxSplits: 2,
       omittingEmptySubsequences: true
     ).map(String.init)
-    
+
     let tagOrBranchName = refComponents.popLast()!
 
     if refComponents.last == "heads" {
