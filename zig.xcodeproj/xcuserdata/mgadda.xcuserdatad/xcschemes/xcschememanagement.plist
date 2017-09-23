@@ -4,18 +4,30 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
-		<key>zig.xcscheme</key>
+		<key>CryptoSwiftPackageDescription.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
+		<key>MessagePackPackageDescription.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>3</integer>
+		</dict>
+		<key>zig-Package.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
 		</dict>
-	</dict>
-	<key>SuppressBuildableAutocreation</key>
-	<dict>
-		<key>7DB445271F6976F40002FFD6</key>
+		<key>zig.xcscheme</key>
 		<dict>
-			<key>primary</key>
-			<true/>
+			<key>orderHint</key>
+			<integer>4</integer>
+		</dict>
+		<key>zigPackageDescription.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>2</integer>
 		</dict>
 	</dict>
 </dict>

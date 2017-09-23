@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import CryptoSwift
 
 protocol ObjectLike : NSCoding {
   var type: String { get }
@@ -16,11 +17,7 @@ protocol ObjectLike : NSCoding {
 
 extension ObjectLike {
   func hash(data: Data) -> Data {
-    var digest = [UInt8](repeating: 0,  count: Int(CC_SHA1_DIGEST_LENGTH))
-    let _ = data.withUnsafeBytes {
-      CC_SHA1($0, CC_LONG(data.count), &digest)
-    }
-    return Data(bytes: digest)
+    return data.sha1()    
   }
 }
 

@@ -65,6 +65,7 @@ class Repository {
     )
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
+    
     NSKeyedArchiver.archiveRootObject(object, toFile: fileURL.path)
   }
 
