@@ -8,7 +8,7 @@
 
 import Foundation
 
-protocol ObjectLike {
+protocol ObjectLike : Codable {
   var type: String { get }
   var id: Data { get }
   func description(repository: Repository, verbose: Bool) -> String
@@ -114,6 +114,8 @@ struct Tree : ObjectLike, Codable {
     entries.forEach { entry in
       treeData.append(contentsOf: entry.name.data(using: .utf8)!)
       treeData.append(entry.objectId)
+      treeData.append(entry.objectType.data(using: .utf8)!)
+
       var perms = entry.permissions
       treeData.append(Data(bytes: &perms, count: MemoryLayout.size(ofValue: entry.permissions)))
     }
@@ -122,19 +124,16 @@ struct Tree : ObjectLike, Codable {
 
   func description(repository: Repository, verbose: Bool) -> String {
     return entries.map { entry in
-      return "\(entry.permissions)\t\(entry.object(repository: repository).type)\t\(entry.objectId.base16EncodedString())\t\(entry.name)\n"
+      return "\(entry.permissions)\t\(entry.objectType)\t\(entry.objectId.base16EncodedString())\t\(entry.name)\n"
       }.joined()
   }
 }
 
 struct Entry : Codable, Hashable {
   let permissions: Int
-  var objectId: Data
+  let objectId: Data
+  let objectType: String // TODO: make enum
   let name: String
-
-  func object(repository: Repository) -> ObjectLike {
-    return repository.readObject(id: self.objectId)!
-  }
 
   var hashValue: Int {
     return permissions.hashValue ^ objectId.hashValue ^ name.hashValue

@@ -43,9 +43,16 @@ switch (CommandLine.argc, CommandLine.arguments[1]) {
     }
 
     let id = CommandLine.arguments[2].base16DecodedData()
-    let desc = repo.readObject(id: id).map { $0.description(repository: repo, verbose: true) } ?? "Unknown object"
-    print(desc)
 
+    if let blob = repo.readObject(id: id, type: Blob.self) {
+      print(blob.description(repository: repo, verbose: true))
+    } else if let tree = repo.readObject(id: id, type: Tree.self) {
+      print(tree.description(repository: repo, verbose: true))
+    } else if let commit = repo.readObject(id: id, type: Commit.self) {
+      print(commit.description(repository: repo, verbose: true))
+    } else {
+      print("Unknown object")
+    }    
   case (2, "snapshot"):
     guard let repo = Repository() else {
       exit(1)

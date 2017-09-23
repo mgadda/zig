@@ -65,10 +65,30 @@ class Repository {
     )
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    NSKeyedArchiver.archiveRootObject(object, toFile: fileURL.path)
+    let encoder = PropertyListEncoder()
+    let data: Data?
+    switch object {
+    case let blob as Blob:
+      data = try? encoder.encode(blob)
+      break
+    case let tree as Tree:
+      data = try? encoder.encode(tree)
+      break
+    case let commit as Commit:
+      data = try? encoder.encode(commit)
+      break
+    default:
+      data = nil
+      break
+    }
+
+    if data != nil {
+      Repository.fileman.createFile(atPath: fileURL.path, contents: data, attributes: nil)
+    }
+//    NSKeyedArchiver.archiveRootObject(object, toFile: fileURL.path)
   }
 
-  func readObject(id: Data) -> ObjectLike? {
+  private func loadObjectData(id: Data) -> Data? {
     let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
 
     let (objIdPrefix, filename) = splitId(id: id)
@@ -76,7 +96,14 @@ class Repository {
     let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    return NSKeyedUnarchiver.unarchiveObject(withFile: fileURL.path) as? ObjectLike
+    return try? Data(contentsOf: fileURL)
+  }
+
+  func readObject<T: Decodable>(id: Data, type: T.Type) -> T? {
+    let decoder = PropertyListDecoder()
+    return loadObjectData(id: id).flatMap {
+      try? decoder.decode(type, from: $0)      
+    }
   }
 
   func hashFile(filename: String) -> ObjectLike {
@@ -172,13 +199,16 @@ class Repository {
       let object: ObjectLike
       if url.hasDirectoryPath {
 
-        // recurse to produce object
+        // recurse to produce object (tree or blob)
         object = _snapshot(startingAt: url)
+        writeObject(object: object)
+        return Entry(permissions: perms, objectId: object.id, objectType: "tree", name: url.lastPathComponent)
+
       } else {
         object = Blob(content: try! Data(contentsOf: url))
+        writeObject(object: object)
+        return Entry(permissions: perms, objectId: object.id, objectType: "blob", name: url.lastPathComponent)
       }
-      writeObject(object: object)
-      return Entry(permissions: perms, objectId: object.id, name: url.lastPathComponent)
     }
 
     let topLevelTree = Tree(entries: entries)
@@ -259,8 +289,8 @@ class Repository {
       }
     } else {
       // search heads, then search tags for match
-      return findFile(filename: tagOrBranchName, directory: branchHeadsUrl).map {
-        Reference.branch($0.lastPathComponent)
+      return findFile(filename: tagOrBranchName, directory: branchHeadsUrl).map { p in
+        Reference.branch(p.lastPathComponent)
         } ?? findFile(filename: tagOrBranchName, directory: tagsUrl).map {
           Reference.tag($0.lastPathComponent)
       }
@@ -313,6 +343,10 @@ class Repository {
       return resolveBranchOrTag(name, path: "tags").flatMap { resolve($0) }
 
     case let .commit(id):
+      guard id.characters.count >= 6 else {
+        return nil
+      }
+
       if id.characters.count == 40 {
         return ref
       } else {
@@ -342,6 +376,8 @@ class Repository {
     return resolve(.unknown(ref))
   }
 
+  // TODO: this entire method could be much more easily
+  // implemented in bash
   class func initRepo() -> Repository? {
     let cwdUrl = URL(fileURLWithPath: fileman.currentDirectoryPath)
     let zigDir = cwdUrl.appendingPathComponent(".zig")
@@ -353,10 +389,16 @@ class Repository {
 
     try! fileman.createDirectory(at: zigDir, withIntermediateDirectories: false, attributes: nil)
 
-    fileman.createFile(atPath: zigDir.appendingPathComponent("HEAD").path, contents: Data(), attributes: nil)
+    fileman.createFile(atPath: zigDir.appendingPathComponent("HEAD").path, contents: "refs/heads/master".data(using: .utf8), attributes: nil)
 
     let headsDir = zigDir.appendingPathComponent("refs").appendingPathComponent("heads")
     try! fileman.createDirectory(at: headsDir, withIntermediateDirectories: true, attributes: nil)
+
+    fileman.createFile(
+      atPath: headsDir.appendingPathComponent("master", isDirectory: false).path,
+      contents: nil,
+      attributes: nil
+    )
 
     let tagsDir = zigDir.appendingPathComponent("refs").appendingPathComponent("tags")
     try! fileman.createDirectory(at: tagsDir, withIntermediateDirectories: true, attributes: nil)
