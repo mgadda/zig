@@ -201,7 +201,7 @@ class Repository {
         // recurse to produce object (tree or blob)
         object = _snapshot(startingAt: url)
         writeObject(object: object)
-        return Entry(permissions: perms, objectId: object.id, objectType: "tree", name: url.lastPathComponent)
+        return Entry(permissions: perms, objectId: object.id, objectType: "tree", name: url.lastPathComponent)        
 
       } else {
         object = Blob(content: try! Data(contentsOf: url))
@@ -305,6 +305,28 @@ class Repository {
     }
     return parseSymbolicRef(ref: str)
   }
+
+  // Attempt to expand a partial id into a full id
+  private func expandPartialId(_ id: String) -> String? {
+    let (prefix, partialSuffix) = (String(id.characters.prefix(2)), String(id.characters.dropFirst(2)))
+    let prefixedUrl = objectDir.appendingPathComponent(prefix, isDirectory: true)
+
+    let objectUrls = try! Repository.fileman.contentsOfDirectory(
+      at: prefixedUrl,
+      includingPropertiesForKeys: [],
+      options: FileManager.DirectoryEnumerationOptions.skipsHiddenFiles)
+
+    let candidateUrls = objectUrls.filter { $0.lastPathComponent.hasPrefix(partialSuffix) }
+
+    if candidateUrls.count > 1 {
+      print("warning: ambiguous ref")
+    }
+
+    return candidateUrls.first.map { url in
+      return prefix + url.lastPathComponent
+    }
+  }
+
   // Attempt to resolve a String into something that
   // represents a commit object.
   // If full is false, resolve will stop only one step from the input.
@@ -349,25 +371,8 @@ class Repository {
       if id.characters.count == 40 {
         return ref
       } else {
-        let (prefix, partialSuffix) = (String(id.characters.prefix(2)), String(id.characters.dropFirst(2)))
-        let prefixedUrl = objectDir.appendingPathComponent(prefix, isDirectory: true)
-
-        let objectUrls = try! Repository.fileman.contentsOfDirectory(
-          at: prefixedUrl,
-          includingPropertiesForKeys: [],
-          options: FileManager.DirectoryEnumerationOptions.skipsHiddenFiles)
-
-        let candidateUrls = objectUrls.filter { $0.lastPathComponent.hasPrefix(partialSuffix) }
-
-        if candidateUrls.count > 1 {
-          print("warning: ambiguous ref")
-        }
-
-        return candidateUrls.first.map { url in
-          return .commit((prefix + url.lastPathComponent))
-        }
+        return expandPartialId(id).map { .commit($0) }        
       }
-
     }
   }
 
