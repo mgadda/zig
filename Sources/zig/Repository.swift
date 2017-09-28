@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MessagePackEncoder
 
 class Repository {
   let rootUrl: URL // working tree
@@ -65,7 +66,8 @@ class Repository {
     )
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    let encoder = PropertyListEncoder()
+//    let encoder = PropertyListEncoder()
+    let encoder = MessagePackEncoder()
     let data: Data?
     switch object {
     case let blob as Blob:

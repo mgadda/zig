@@ -33,108 +33,106 @@ open class MessagePackEncoder {
     }
     return pack(mpValue)
   }
+}
 
-  fileprivate class _MessagePackEncoder : Encoder {
-    var codingPath: [CodingKey]
-
-    var storage: _MessagePackEncodingStorage
-    let userInfo: [CodingUserInfoKey: Any]
-
-    // MARK: - Initialization
-    /// Initializes `self` with the given top-level encoder options.
-    fileprivate init(userInfo: [CodingUserInfoKey: Any], codingPath: [CodingKey] = []) {
-      self.userInfo = userInfo
-      self.storage = _MessagePackEncodingStorage()
-      self.codingPath = codingPath
-    }
-
-    /// Returns whether a new element can be encoded at this coding path.
-    ///
-    /// `true` if an element has not yet been encoded at this coding path; `false` otherwise.
-    fileprivate var canEncodeNewValue: Bool {
-      return self.storage.count == self.codingPath.count
-    }
-
-    func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
-      // If an existing keyed container was already requested, return that one.
-      let topContainer: MessagePackValue
-      if self.canEncodeNewValue {
-        // We haven't yet pushed a container at this level; do so here.
-        topContainer = self.storage.pushKeyedContainer()
-      } else {
-        guard let container = self.storage.containers.last else {
-          preconditionFailure("Attempt to push new keyed encoding container when already previously encoded at this path.")
-        }
-
-        topContainer = container
-      }
-
-      let container = MessagePackKeyedEncodingContainer<Key>(referencing: self, codingPath: self.codingPath, wrapping: topContainer)
-      return KeyedEncodingContainer(container)
-    }
-
-    func unkeyedContainer() -> UnkeyedEncodingContainer {
-      // If an existing unkeyed container was already requested, return that one.
-      let topContainer: MessagePackValue
-      if self.canEncodeNewValue {
-        // We haven't yet pushed a container at this level; do so here.
-        topContainer = self.storage.pushUnkeyedContainer()
-      } else {
-        guard let container = self.storage.containers.last else {
-          preconditionFailure("Attempt to push new unkeyed encoding container when already previously encoded at this path.")
-        }
-
-        topContainer = container
-      }
-
-      return MessagePackUnkeyedEncodingContainer(referencing: self, codingPath: self.codingPath, wrapping: topContainer)
-    }
-
-    func singleValueContainer() -> SingleValueEncodingContainer {
-      return self
-    }
-
-
+fileprivate struct _MessagePackEncodingStorage {
+  var containers: [MessagePackValue] = []
+  init() {}
+  var count: Int {
+    return containers.count
   }
 
-  fileprivate struct _MessagePackEncodingStorage {
-    var containers: [MessagePackValue] = []
-    init() {}
-    var count: Int {
-      return containers.count
+  mutating func pushKeyedContainer() -> MessagePackValue {
+    let dictionary = MessagePackValue.map([MessagePackValue : MessagePackValue]())
+    self.containers.append(dictionary)
+    return dictionary
+  }
+
+  mutating func pushUnkeyedContainer() -> MessagePackValue {
+    let array = MessagePackValue.array([MessagePackValue]())
+    self.containers.append(array)
+    return array
+  }
+
+  mutating func push(container: MessagePackValue) {
+    self.containers.append(container)
+  }
+
+  mutating func popContainer() -> MessagePackValue {
+    precondition(self.containers.count > 0, "Empty container stack.")
+    return self.containers.popLast()!
+  }
+}
+
+fileprivate class _MessagePackEncoder : Encoder {
+  var codingPath: [CodingKey]
+
+  var storage: _MessagePackEncodingStorage
+  let userInfo: [CodingUserInfoKey: Any]
+
+  // MARK: - Initialization
+  /// Initializes `self` with the given top-level encoder options.
+  fileprivate init(userInfo: [CodingUserInfoKey: Any], codingPath: [CodingKey] = []) {
+    self.userInfo = userInfo
+    self.storage = _MessagePackEncodingStorage()
+    self.codingPath = codingPath
+  }
+
+  /// Returns whether a new element can be encoded at this coding path.
+  ///
+  /// `true` if an element has not yet been encoded at this coding path; `false` otherwise.
+  fileprivate var canEncodeNewValue: Bool {
+    return self.storage.count == self.codingPath.count
+  }
+
+  func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
+    // If an existing keyed container was already requested, return that one.
+    let topContainer: MessagePackValue
+    if self.canEncodeNewValue {
+      // We haven't yet pushed a container at this level; do so here.
+      topContainer = self.storage.pushKeyedContainer()
+    } else {
+      guard let container = self.storage.containers.last else {
+        preconditionFailure("Attempt to push new keyed encoding container when already previously encoded at this path.")
+      }
+
+      topContainer = container
     }
 
-    mutating func pushKeyedContainer() -> MessagePackValue {
-      let dictionary = MessagePackValue.map([MessagePackValue : MessagePackValue]())
-      self.containers.append(dictionary)
-      return dictionary
+    let container = MessagePackKeyedEncodingContainer<Key>(referencing: self, codingPath: self.codingPath, wrapping: topContainer)
+    return KeyedEncodingContainer(container)
+  }
+
+  func unkeyedContainer() -> UnkeyedEncodingContainer {
+    // If an existing unkeyed container was already requested, return that one.
+    let topContainer: MessagePackValue
+    if self.canEncodeNewValue {
+      // We haven't yet pushed a container at this level; do so here.
+      topContainer = self.storage.pushUnkeyedContainer()
+    } else {
+      guard let container = self.storage.containers.last else {
+        preconditionFailure("Attempt to push new unkeyed encoding container when already previously encoded at this path.")
+      }
+
+      topContainer = container
     }
 
-    mutating func pushUnkeyedContainer() -> MessagePackValue {
-      let array = MessagePackValue.array([MessagePackValue]())
-      self.containers.append(array)
-      return array
-    }
+    return MessagePackUnkeyedEncodingContainer(referencing: self, codingPath: self.codingPath, wrapping: topContainer)
+  }
 
-    mutating func push(container: MessagePackValue) {
-      self.containers.append(container)
-    }
-
-    mutating func popContainer() -> MessagePackValue {
-      precondition(self.containers.count > 0, "Empty container stack.")
-      return self.containers.popLast()!
-    }
+  func singleValueContainer() -> SingleValueEncodingContainer {
+    return self
   }
 }
 
 fileprivate class MessagePackKeyedEncodingContainer<K : CodingKey> : KeyedEncodingContainerProtocol {
   typealias Key = K
 
-  private let encoder: MessagePackEncoder._MessagePackEncoder
+  private let encoder: _MessagePackEncoder
   private var container: [MessagePackValue : MessagePackValue]
   private(set) public var codingPath: [CodingKey]
 
-  fileprivate init(referencing encoder: MessagePackEncoder._MessagePackEncoder, codingPath: [CodingKey], wrapping container: MessagePackValue) {
+  fileprivate init(referencing encoder: _MessagePackEncoder, codingPath: [CodingKey], wrapping container: MessagePackValue) {
     self.encoder = encoder
     self.codingPath = codingPath
     switch container {
@@ -238,7 +236,7 @@ fileprivate class MessagePackKeyedEncodingContainer<K : CodingKey> : KeyedEncodi
     self.codingPath.append(key)
     defer { self.codingPath.removeLast() }
 
-    let container = MessagePackKeyedEncodingContainer<NestedKey>(referencing: self.encoder, codingPath: self.codingPath, wrapping: messagePackMap)
+    let container = MessagePackKeyedEncodingContainer<NestedKey>(referencing: encoder, codingPath: codingPath, wrapping: messagePackMap)
     return KeyedEncodingContainer(container)
   }
 
@@ -248,33 +246,28 @@ fileprivate class MessagePackKeyedEncodingContainer<K : CodingKey> : KeyedEncodi
 
     self.codingPath.append(key)
     defer { self.codingPath.removeLast() }
-    return MessagePackUnkeyedEncodingContainer(referencing: self.encoder, codingPath: self.codingPath, wrapping: messagePackArray)
+    return MessagePackUnkeyedEncodingContainer(referencing: encoder, codingPath: codingPath, wrapping: messagePackArray)
   }
 
   func superEncoder() -> Encoder {
-    <#code#>
+    return MessagePackReferencingEncoder(referencing: self.encoder, at: MessagePackKey.super, wrapping: self.container)
   }
 
   func superEncoder(forKey key: MessagePackKeyedEncodingContainer.Key) -> Encoder {
-    <#code#>
+    return MessagePackReferencingEncoder(referencing: self.encoder, at: key, wrapping: self.container)
   }
 }
 
 fileprivate class MessagePackUnkeyedEncodingContainer : UnkeyedEncodingContainer {
-  private let encoder: MessagePackEncoder._MessagePackEncoder
-
-  /// A reference to the container we're writing to.
+  private let encoder: _MessagePackEncoder
   private var container: [MessagePackValue]
-
-  /// The path of coding keys taken to get to this point in encoding.
   private(set) public var codingPath: [CodingKey]
 
-  /// The number of elements encoded into the container.
   public var count: Int {
     return self.container.count
   }
 
-  fileprivate init(referencing encoder: MessagePackEncoder._MessagePackEncoder, codingPath: [CodingKey], wrapping container: MessagePackValue) {
+  fileprivate init(referencing encoder: _MessagePackEncoder, codingPath: [CodingKey], wrapping container: MessagePackValue) {
     self.encoder = encoder
     self.codingPath = codingPath
     switch container {
@@ -303,25 +296,36 @@ fileprivate class MessagePackUnkeyedEncodingContainer : UnkeyedEncodingContainer
 
   func encode<T>(_ value: T) throws where T : Encodable {
     encoder.codingPath.append(MessagePackKey(index: self.count))
-    defer { self.encoder.codingPath.removeLast() }
-    self.container.add(try encoder.box(value))
+    defer { encoder.codingPath.removeLast() }
+    container.append(try encoder.box(value))
   }
 
   func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
-    <#code#>
+    codingPath.append(MessagePackKey(index: count))
+    defer { self.codingPath.removeLast() }
+
+    let messagePackMap: MessagePackValue = .map([MessagePackValue : MessagePackValue]())
+    self.container.append(messagePackMap)
+
+    let container = MessagePackKeyedEncodingContainer<NestedKey>(referencing: encoder, codingPath: codingPath, wrapping: messagePackMap)
+    return KeyedEncodingContainer(container)
   }
 
   func nestedUnkeyedContainer() -> UnkeyedEncodingContainer {
-    <#code#>
+    codingPath.append(MessagePackKey(index: count))
+    defer { codingPath.removeLast() }
+
+    let messagePackArray: MessagePackValue = .array([MessagePackValue]())
+    container.append(messagePackArray)
+    return MessagePackUnkeyedEncodingContainer(referencing: encoder, codingPath: codingPath, wrapping: messagePackArray)
   }
 
   func superEncoder() -> Encoder {
-    <#code#>
+    return MessagePackReferencingEncoder(referencing: self.encoder, at: self.container.count, wrapping: self.container)
   }
-
-
 }
-extension MessagePackEncoder._MessagePackEncoder : SingleValueEncodingContainer {
+
+extension _MessagePackEncoder : SingleValueEncodingContainer {
   fileprivate func assertCanEncodeNewValue() {
     precondition(self.canEncodeNewValue, "Attempt to encode value through single value container when previously value already encoded.")
   }
@@ -408,7 +412,7 @@ extension MessagePackEncoder._MessagePackEncoder : SingleValueEncodingContainer 
   }
 }
 
-extension MessagePackEncoder._MessagePackEncoder {
+extension _MessagePackEncoder {
   /// Returns the given value boxed in a container appropriate for pushing onto the container stack.
   fileprivate func box(_ value: Bool)   -> MessagePackValue { return MessagePackValue(value) }
   fileprivate func box(_ value: Int)    -> MessagePackValue { return MessagePackValue(value) }
@@ -459,6 +463,60 @@ extension MessagePackEncoder._MessagePackEncoder {
   }
 }
 
+fileprivate class MessagePackReferencingEncoder : _MessagePackEncoder {
+  private enum Reference {
+    case array([MessagePackValue], Int)
+    case dictionary([MessagePackValue : MessagePackValue], String)
+  }
+
+  let encoder: _MessagePackEncoder
+  private let reference: Reference
+
+  init(referencing encoder: _MessagePackEncoder, at index: Int, wrapping array: [MessagePackValue]) {
+    self.encoder = encoder
+    self.reference = .array(array, index)
+    super.init(userInfo: encoder.userInfo, codingPath: encoder.codingPath)
+
+    codingPath.append(MessagePackKey(index: index))
+  }
+
+  init(referencing encoder: _MessagePackEncoder, at key: CodingKey, wrapping dictionary: [MessagePackValue: MessagePackValue]) {
+    self.encoder = encoder
+    self.reference = .dictionary(dictionary, key.stringValue)
+    super.init(userInfo: encoder.userInfo, codingPath: encoder.codingPath)
+
+    self.codingPath.append(key)
+  }
+
+  // MARK: - Coding Path Operations
+
+  fileprivate override var canEncodeNewValue: Bool {
+    // With a regular encoder, the storage and coding path grow together.
+    // A referencing encoder, however, inherits its parents coding path, as well as the key it was created for.
+    // We have to take this into account.
+    return self.storage.count == self.codingPath.count - self.encoder.codingPath.count - 1
+  }
+
+  // MARK: - Deinitialization
+
+  // Finalizes `self` by writing the contents of our storage to the referenced encoder's storage.
+  deinit {
+    let value: MessagePackValue
+    switch self.storage.count {
+    case 0: value = MessagePackValue.map([MessagePackValue : MessagePackValue]())
+    case 1: value = self.storage.popContainer()
+    default: fatalError("Referencing encoder deallocated with multiple containers on stack.")
+    }
+
+    switch self.reference {
+    case .array(var array, let index):
+      array.insert(value, at: index)
+
+    case .dictionary(var dictionary, let key):
+      dictionary[MessagePackValue(key)] = value    
+    }
+  }
+}
 /*
 class MessagePackDecoder : Decoder {
   var codingPath: [CodingKey]
@@ -480,3 +538,25 @@ class MessagePackDecoder : Decoder {
 
 }
 */
+
+fileprivate struct MessagePackKey : CodingKey {
+  public var stringValue: String
+  public var intValue: Int?
+
+  public init?(stringValue: String) {
+    self.stringValue = stringValue
+    self.intValue = nil
+  }
+
+  public init?(intValue: Int) {
+    self.stringValue = "\(intValue)"
+    self.intValue = intValue
+  }
+
+  fileprivate init(index: Int) {
+    self.stringValue = "Index \(index)"
+    self.intValue = index
+  }
+
+  fileprivate static let `super` = MessagePackKey(stringValue: "super")!
+}
