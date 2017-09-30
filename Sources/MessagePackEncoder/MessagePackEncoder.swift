@@ -28,10 +28,10 @@ open class MessagePackEncoder {
   /// - throws: An error if any value throws an error during encoding.
   open func encode<T : Encodable>(_ value: T) throws -> Data {
     let encoder = _MessagePackEncoder(userInfo: userInfo)
-    guard let mpValue = try encoder.box_(value) else {
+    guard let boxedValue = try encoder.box_(value) else {
       throw EncodingError.invalidValue(value, EncodingError.Context(codingPath: [], debugDescription: "Top-level \(T.self) did not encode any values."))
     }
-    return pack(mpValue)
+    return pack(MessagePackValue(boxedValue: boxedValue))
   }
 }
 
@@ -58,7 +58,7 @@ internal class _MessagePackEncoder : Encoder {
 
   func container<Key>(keyedBy type: Key.Type) -> KeyedEncodingContainer<Key> where Key : CodingKey {
     // If an existing keyed container was already requested, return that one.
-    let topContainer: MessagePackValue
+    let topContainer: MutableDictionaryReference<BoxedValue, BoxedValue>
     if self.canEncodeNewValue {
       // We haven't yet pushed a container at this level; do so here.
       topContainer = self.storage.pushKeyedContainer()
@@ -67,7 +67,11 @@ internal class _MessagePackEncoder : Encoder {
         preconditionFailure("Attempt to push new keyed encoding container when already previously encoded at this path.")
       }
 
-      topContainer = container
+      guard case let .map(dictContainer) = container else {
+        preconditionFailure("Previously encoded container at this path must be a BoxedValue.map")
+      }
+
+      topContainer = dictContainer
     }
 
     let container = MessagePackKeyedEncodingContainer<Key>(referencing: self, codingPath: self.codingPath, wrapping: topContainer)
@@ -76,7 +80,7 @@ internal class _MessagePackEncoder : Encoder {
 
   func unkeyedContainer() -> UnkeyedEncodingContainer {
     // If an existing unkeyed container was already requested, return that one.
-    let topContainer: MessagePackValue
+    let topContainer: MutableArrayReference<BoxedValue>
     if self.canEncodeNewValue {
       // We haven't yet pushed a container at this level; do so here.
       topContainer = self.storage.pushUnkeyedContainer()
@@ -85,7 +89,11 @@ internal class _MessagePackEncoder : Encoder {
         preconditionFailure("Attempt to push new unkeyed encoding container when already previously encoded at this path.")
       }
 
-      topContainer = container
+      guard case let .array(arrayContainer) = container else {
+        preconditionFailure("Previously encoded container at this path must be a BoxedValue.array")
+      }
+
+      topContainer = arrayContainer
     }
 
     return MessagePackUnkeyedEncodingContainer(referencing: self, codingPath: self.codingPath, wrapping: topContainer)
@@ -98,30 +106,30 @@ internal class _MessagePackEncoder : Encoder {
 
 extension _MessagePackEncoder {
   /// Returns the given value boxed in a container appropriate for pushing onto the container stack.
-  internal func box(_ value: Bool)   -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Int)    -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Int8)   -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Int16)  -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Int32)  -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Int64)  -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: UInt)   -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: UInt8)  -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: UInt16) -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: UInt32) -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: UInt64) -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: String) -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Float)  -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Double) -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Data)   -> MessagePackValue { return MessagePackValue(value) }
-  internal func box(_ value: Date)   -> MessagePackValue {
-    return MessagePackValue(value.timeIntervalSince1970)
+  internal func box(_ value: Bool)   -> BoxedValue { return BoxedValue.bool(value) }
+  internal func box(_ value: Int)    -> BoxedValue { return BoxedValue.int(Int64(value)) }
+  internal func box(_ value: Int8)   -> BoxedValue { return BoxedValue.int(Int64(value)) }
+  internal func box(_ value: Int16)  -> BoxedValue { return BoxedValue.int(Int64(value)) }
+  internal func box(_ value: Int32)  -> BoxedValue { return BoxedValue.int(Int64(value)) }
+  internal func box(_ value: Int64)  -> BoxedValue { return BoxedValue.int(value) }
+  internal func box(_ value: UInt)   -> BoxedValue { return BoxedValue.uint(UInt64(value)) }
+  internal func box(_ value: UInt8)  -> BoxedValue { return BoxedValue.uint(UInt64(value)) }
+  internal func box(_ value: UInt16) -> BoxedValue { return BoxedValue.uint(UInt64(value)) }
+  internal func box(_ value: UInt32) -> BoxedValue { return BoxedValue.uint(UInt64(value)) }
+  internal func box(_ value: UInt64) -> BoxedValue { return BoxedValue.uint(value) }
+  internal func box(_ value: String) -> BoxedValue { return BoxedValue.string(value) }
+  internal func box(_ value: Float)  -> BoxedValue { return BoxedValue.float(value) }
+  internal func box(_ value: Double) -> BoxedValue { return BoxedValue.double(value) }
+  internal func box(_ value: Data)   -> BoxedValue { return BoxedValue.binary(value) }
+  internal func box(_ value: Date)   -> BoxedValue {
+    return BoxedValue.double(value.timeIntervalSince1970)
   }
 
-  internal func box<T : Encodable>(_ value: T) throws -> MessagePackValue {
-    return try self.box_(value) ?? MessagePackValue()
+  internal func box<T : Encodable>(_ value: T) throws -> BoxedValue {
+    return try self.box_(value) ?? BoxedValue.`nil`
   }
 
-  fileprivate func box_<T : Encodable>(_ value: T) throws -> MessagePackValue? {
+  fileprivate func box_<T : Encodable>(_ value: T) throws -> BoxedValue? {
 //    if T.self == Date.self || T.self == NSDate.self {
 //      // Respect Date encoding strategy
 //      return try self.box((value as! Date))
@@ -148,4 +156,5 @@ extension _MessagePackEncoder {
     return self.storage.popContainer()
   }
 }
+
 

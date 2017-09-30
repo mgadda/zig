@@ -12,21 +12,16 @@ internal class MessagePackKeyedEncodingContainer<K : CodingKey> : KeyedEncodingC
   typealias Key = K
 
   private let encoder: _MessagePackEncoder
-  private var container: [MessagePackValue : MessagePackValue]
+  private var container: MutableDictionaryReference<BoxedValue, BoxedValue> = [:]
   private(set) public var codingPath: [CodingKey]
 
-  internal init(referencing encoder: _MessagePackEncoder, codingPath: [CodingKey], wrapping container: MessagePackValue) {
+  internal init(referencing encoder: _MessagePackEncoder, codingPath: [CodingKey], wrapping container: MutableDictionaryReference<BoxedValue, BoxedValue>) {
     self.encoder = encoder
     self.codingPath = codingPath
-    switch container {
-    case let .map(map):
-      self.container = map
-    default:
-      preconditionFailure("MessagePackUnkeyedEncodingContainer wrapping container must be enum value of MessagePackValue.map")
-    }
+    self.container = container
   }
 
-  func encodeNil(forKey key: MessagePackKeyedEncodingContainer.Key) throws { container[.string(key.stringValue)] = MessagePackValue() }
+  func encodeNil(forKey key: MessagePackKeyedEncodingContainer.Key) throws { container[.string(key.stringValue)] = BoxedValue.`nil` }
   func encode(_ value: Bool, forKey key: MessagePackKeyedEncodingContainer.Key) throws { container[.string(key.stringValue)] = encoder.box(value) }
   func encode(_ value: Int, forKey key: MessagePackKeyedEncodingContainer.Key) throws { container[.string(key.stringValue)] = encoder.box(value) }
   func encode(_ value: Int8, forKey key: MessagePackKeyedEncodingContainer.Key) throws { container[.string(key.stringValue)] = encoder.box(value) }
@@ -113,23 +108,25 @@ internal class MessagePackKeyedEncodingContainer<K : CodingKey> : KeyedEncodingC
   //  }
 
   func nestedContainer<NestedKey>(keyedBy keyType: NestedKey.Type, forKey key: MessagePackKeyedEncodingContainer.Key) -> KeyedEncodingContainer<NestedKey> where NestedKey : CodingKey {
-    let messagePackMap: MessagePackValue = .map([MessagePackValue : MessagePackValue]())
-    self.container[.string(key.stringValue)] = messagePackMap
+    let dictRef = MutableDictionaryReference<BoxedValue, BoxedValue>()
+    let boxedDict: BoxedValue = .map(dictRef)
+    self.container[.string(key.stringValue)] = boxedDict
 
     self.codingPath.append(key)
     defer { self.codingPath.removeLast() }
 
-    let container = MessagePackKeyedEncodingContainer<NestedKey>(referencing: encoder, codingPath: codingPath, wrapping: messagePackMap)
+    let container = MessagePackKeyedEncodingContainer<NestedKey>(referencing: encoder, codingPath: codingPath, wrapping: dictRef)
     return KeyedEncodingContainer(container)
   }
 
   func nestedUnkeyedContainer(forKey key: MessagePackKeyedEncodingContainer.Key) -> UnkeyedEncodingContainer {
-    let messagePackArray: MessagePackValue = .array([MessagePackValue]())
-    self.container[.string(key.stringValue)] = messagePackArray
+    let arrayRef = MutableArrayReference<BoxedValue>()
+    let boxedArray: BoxedValue = .array(arrayRef)
+    self.container[.string(key.stringValue)] = boxedArray
 
     self.codingPath.append(key)
     defer { self.codingPath.removeLast() }
-    return MessagePackUnkeyedEncodingContainer(referencing: encoder, codingPath: codingPath, wrapping: messagePackArray)
+    return MessagePackUnkeyedEncodingContainer(referencing: encoder, codingPath: codingPath, wrapping: arrayRef)
   }
 
   func superEncoder() -> Encoder {

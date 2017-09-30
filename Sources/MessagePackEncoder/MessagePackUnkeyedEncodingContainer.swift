@@ -10,25 +10,20 @@ import MessagePack
 
 internal class MessagePackUnkeyedEncodingContainer : UnkeyedEncodingContainer {
   private let encoder: _MessagePackEncoder
-  private var container: [MessagePackValue]
+  private var container: MutableArrayReference<BoxedValue> = []
   private(set) public var codingPath: [CodingKey]
 
   public var count: Int {
     return self.container.count
   }
 
-  internal init(referencing encoder: _MessagePackEncoder, codingPath: [CodingKey], wrapping container: MessagePackValue) {
+  internal init(referencing encoder: _MessagePackEncoder, codingPath: [CodingKey], wrapping container: MutableArrayReference<BoxedValue>) {
     self.encoder = encoder
     self.codingPath = codingPath
-    switch container {
-    case let .array(array):
-      self.container = array
-    default:
-      preconditionFailure("MessagePackUnkeyedEncodingContainer wrapping container must be enum value of MessagePackValue.array")
-    }
+    self.container = container
   }
 
-  func encodeNil() throws { container.append(MessagePackValue()) }
+  func encodeNil() throws { container.append(BoxedValue.`nil`) }
   func encode(_ value: Bool) throws { container.append(encoder.box(value)) }
   func encode(_ value: Int) throws { container.append(encoder.box(value)) }
   func encode(_ value: Int8) throws { container.append(encoder.box(value)) }
@@ -54,10 +49,11 @@ internal class MessagePackUnkeyedEncodingContainer : UnkeyedEncodingContainer {
     codingPath.append(MessagePackKey(index: count))
     defer { self.codingPath.removeLast() }
 
-    let messagePackMap: MessagePackValue = .map([MessagePackValue : MessagePackValue]())
-    self.container.append(messagePackMap)
+    let dictRef = MutableDictionaryReference<BoxedValue, BoxedValue>()
+    let boxedDict: BoxedValue = .map(dictRef)
+    self.container.append(boxedDict)
 
-    let container = MessagePackKeyedEncodingContainer<NestedKey>(referencing: encoder, codingPath: codingPath, wrapping: messagePackMap)
+    let container = MessagePackKeyedEncodingContainer<NestedKey>(referencing: encoder, codingPath: codingPath, wrapping: dictRef)
     return KeyedEncodingContainer(container)
   }
 
@@ -65,9 +61,10 @@ internal class MessagePackUnkeyedEncodingContainer : UnkeyedEncodingContainer {
     codingPath.append(MessagePackKey(index: count))
     defer { codingPath.removeLast() }
 
-    let messagePackArray: MessagePackValue = .array([MessagePackValue]())
-    container.append(messagePackArray)
-    return MessagePackUnkeyedEncodingContainer(referencing: encoder, codingPath: codingPath, wrapping: messagePackArray)
+    let arrayRef = MutableArrayReference<BoxedValue>()
+    let boxedArray: BoxedValue = .array(arrayRef)
+    container.append(boxedArray)
+    return MessagePackUnkeyedEncodingContainer(referencing: encoder, codingPath: codingPath, wrapping: arrayRef)
   }
 
   func superEncoder() -> Encoder {

@@ -15,7 +15,7 @@ extension _MessagePackEncoder : SingleValueEncodingContainer {
 
   public func encodeNil() throws {
     assertCanEncodeNewValue()
-    self.storage.push(container: MessagePackValue())
+    self.storage.push(container: BoxedValue.`nil`)
   }
 
   func encode(_ value: Bool) throws {
