@@ -66,7 +66,6 @@ class Repository {
     )
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-//    let encoder = PropertyListEncoder()
     let encoder = MessagePackEncoder()
     let data: Data?
     switch object {
@@ -101,7 +100,7 @@ class Repository {
   }
 
   func readObject<T: Decodable>(id: Data, type: T.Type) -> T? {
-    let decoder = PropertyListDecoder()
+    let decoder = MessagePackDecoder()
     return loadObjectData(id: id).flatMap {
       try? decoder.decode(type, from: $0)
     }

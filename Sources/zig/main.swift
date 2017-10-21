@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MessagePackEncoder
 
 func printHelp() {
   print("zig: source control for the future")
@@ -131,8 +132,13 @@ switch (realArgCount, CommandLine.arguments[1], Array(CommandLine.arguments.drop
       fatalError("Not a valid ref")
     }
 
+
+    let encoder = JSONEncoder()
+    // TODO: define date and data encoding strategies here
+
     // This is kind gross: Attempt to read this object as
     // each of the known types until we get back .some(thing)
+    // TODO: fix this
     if let blob = repo.readObject(id: objectId.base16DecodedData(), type: Blob.self) {
 
       switch outputFormat {
@@ -140,7 +146,7 @@ switch (realArgCount, CommandLine.arguments[1], Array(CommandLine.arguments.drop
         print(blob.description(repository: repo, verbose: verbose))
       case .json:
         let objectForEncoding = ObjectContainer(object: blob)
-        print(String(data: try! JSONEncoder().encode(objectForEncoding), encoding: .utf8)!)
+        print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
       }
 
     } else if let tree = repo.readObject(id: objectId.base16DecodedData(), type: Tree.self) {
@@ -150,7 +156,7 @@ switch (realArgCount, CommandLine.arguments[1], Array(CommandLine.arguments.drop
         print(tree.description(repository: repo, verbose: verbose))
       case .json:
         let objectForEncoding = ObjectContainer(object: tree)
-        print(String(data: try! JSONEncoder().encode(objectForEncoding), encoding: .utf8)!)
+        print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
       }
 
     } else if let commit = repo.readObject(id: objectId.base16DecodedData(), type: Commit.self) {
@@ -160,7 +166,7 @@ switch (realArgCount, CommandLine.arguments[1], Array(CommandLine.arguments.drop
         print(commit.description(repository: repo, verbose: verbose))
       case .json:
         let objectForEncoding = ObjectContainer(object: commit)
-        print(String(data: try! JSONEncoder().encode(objectForEncoding), encoding: .utf8)!)
+        print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
       }
 
     } else {

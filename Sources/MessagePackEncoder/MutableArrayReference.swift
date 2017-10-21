@@ -6,7 +6,7 @@
 //
 
 /// MutableArrayReference is reference-typed wrapper around mutable Array
-class MutableArrayReference<T> : MutableCollection, ExpressibleByArrayLiteral {
+internal class MutableArrayReference<T> : MutableCollection, ExpressibleByArrayLiteral {
 
   var array: [T] = [T]()
   init() {}

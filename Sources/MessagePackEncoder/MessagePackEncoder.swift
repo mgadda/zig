@@ -4,28 +4,19 @@
 //
 //  Created by Matt Gadda on 9/23/17.
 //
+// MessagePackEncoder uses the same design patterns and naming conventions as
+// found Apple Swift's JSONEncoder.swift
+// See: https://github.com/apple/swift/blob/master/stdlib/public/SDK/Foundation/JSONEncoder.swift
 
 import Foundation
 import MessagePack
 
-
 /// `MessagePackEncoder` facilitates the encoding of `Encodable` values into MessagePack format.
 open class MessagePackEncoder {
-
-  /// Contextual user-provided information for use during encoding.
   open var userInfo: [CodingUserInfoKey : Any] = [:]
-
-  // MARK: - Constructing a MessagePack Encoder
 
   public init() {}
 
-  // MARK: - Encoding Values
-
-  /// Encodes the given top-level value and returns its MessagePack representation.
-  ///
-  /// - parameter value: The value to encode.
-  /// - returns: A new `Data` value containing the encoded MessagePack data.
-  /// - throws: An error if any value throws an error during encoding.
   open func encode<T : Encodable>(_ value: T) throws -> Data {
     let encoder = _MessagePackEncoder(userInfo: userInfo)
     guard let boxedValue = try encoder.box_(value) else {
@@ -41,17 +32,12 @@ internal class _MessagePackEncoder : Encoder {
   var storage: MessagePackEncodingStorage
   let userInfo: [CodingUserInfoKey: Any]
 
-  // MARK: - Initialization
-  /// Initializes `self` with the given top-level encoder options.
   internal init(userInfo: [CodingUserInfoKey: Any], codingPath: [CodingKey] = []) {
     self.userInfo = userInfo
     self.storage = MessagePackEncodingStorage()
     self.codingPath = codingPath
   }
 
-  /// Returns whether a new element can be encoded at this coding path.
-  ///
-  /// `true` if an element has not yet been encoded at this coding path; `false` otherwise.
   internal var canEncodeNewValue: Bool {
     return self.storage.count == self.codingPath.count
   }
@@ -130,20 +116,6 @@ extension _MessagePackEncoder {
   }
 
   fileprivate func box_<T : Encodable>(_ value: T) throws -> BoxedValue? {
-//    if T.self == Date.self || T.self == NSDate.self {
-//      // Respect Date encoding strategy
-//      return try self.box((value as! Date))
-//    } else if T.self == Data.self || T.self == NSData.self {
-//      // Respect Data encoding strategy
-//      return try self.box((value as! Data))
-//    } else if T.self == URL.self || T.self == NSURL.self {
-//      // Encode URLs as single strings.
-//      return self.box((value as! URL).absoluteString)
-//    } else if T.self == Decimal.self || T.self == NSDecimalNumber.self {
-//      // JSONSerialization can natively handle NSDecimalNumber.
-//      return (value as! NSDecimalNumber)
-//    }
-
     // The value should request a container from the _JSONEncoder.
     let depth = self.storage.count
     try value.encode(to: self)

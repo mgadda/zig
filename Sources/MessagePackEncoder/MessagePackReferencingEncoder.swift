@@ -33,18 +33,10 @@ internal class MessagePackReferencingEncoder : _MessagePackEncoder {
     self.codingPath.append(key)
   }
 
-  // MARK: - Coding Path Operations
-
   internal override var canEncodeNewValue: Bool {
-    // With a regular encoder, the storage and coding path grow together.
-    // A referencing encoder, however, inherits its parents coding path, as well as the key it was created for.
-    // We have to take this into account.
     return self.storage.count == self.codingPath.count - self.encoder.codingPath.count - 1
   }
 
-  // MARK: - Deinitialization
-
-  // Finalizes `self` by writing the contents of our storage to the referenced encoder's storage.
   deinit {
     let value: BoxedValue
     switch self.storage.count {

@@ -9,7 +9,7 @@ import Foundation
 import MessagePack
 
 /// MutableDictionaryReference is reference-typed wrapper around mutable Dictionary
-public class MutableDictionaryReference<K : Hashable, V> : ExpressibleByDictionaryLiteral {
+internal class MutableDictionaryReference<K : Hashable, V> : ExpressibleByDictionaryLiteral {
   var dictionary = [K : V]()
 
   init() {}
