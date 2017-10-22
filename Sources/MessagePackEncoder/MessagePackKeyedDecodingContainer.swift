@@ -16,7 +16,7 @@ internal class MessagePackKeyedDecodingContainer<K : CodingKey> : KeyedDecodingC
   var codingPath: [CodingKey]
   var allKeys: [K] {
     return self.container.keys.flatMap { (boxedKey: MessagePackValue) -> Key? in
-      guard case let .string(key) = boxedKey else {
+      guard let key = boxedKey.stringValue else {
         return nil
       }
       return Key(stringValue: key)
@@ -36,7 +36,7 @@ internal class MessagePackKeyedDecodingContainer<K : CodingKey> : KeyedDecodingC
 
   private func extractValue(forKey key: K) throws -> MessagePackValue {
     guard let value = self.container[.string(key.stringValue)] else {
-      throw DecodingError.keyNotFound(key, DecodingError.Context(codingPath: self.codingPath, debugDescription: "Key does not exist"))
+      throw DecodingError.keyNotFound(key, DecodingError.Context(codingPath: self.codingPath, debugDescription: "Unknown key \(key)"))
     }
     return value
   }
@@ -71,8 +71,8 @@ internal class MessagePackKeyedDecodingContainer<K : CodingKey> : KeyedDecodingC
     self.decoder.codingPath.append(key)
     defer { self.decoder.codingPath.removeLast() }
 
-    let value = self.container[MessagePackValue(key.stringValue)] ?? MessagePackValue.nil
-    return _MessagePackDecoder(referencing: value, at: self.decoder.codingPath)
+    let containerValue = self.container[MessagePackValue(key.stringValue)] ?? MessagePackValue.nil
+    return _MessagePackDecoder(container: containerValue, at: self.decoder.codingPath)
   }
 
   func superDecoder(forKey key: K) throws -> Decoder {
@@ -80,7 +80,7 @@ internal class MessagePackKeyedDecodingContainer<K : CodingKey> : KeyedDecodingC
   }
 
   func superDecoder() throws -> Decoder {
-    return try _superDecoder(forKey: MessagePackKey.super)
+    return try _superDecoder(forKey: MessagePackKey.superKey)
   }
 
   
@@ -91,8 +91,8 @@ internal class MessagePackKeyedDecodingContainer<K : CodingKey> : KeyedDecodingC
     self.decoder.codingPath.append(key)
     defer { self.decoder.codingPath.removeLast() }
 
-    guard let value = try self.decoder.unbox(boxedValue, as: type) else {
-      throw DecodingError.valueNotFound(type, DecodingError.Context(codingPath: self.decoder.codingPath, debugDescription: "Expected \(type) value but found null instead."))
+    guard let value = try self.decoder.unbox(boxedValue, type: type) else {
+      throw DecodingError.valueNotFound(type, DecodingError.Context(codingPath: self.decoder.codingPath, debugDescription: "boxed value decoded to nil but should be \(type)"))
     }
     return value
   }
@@ -102,58 +102,58 @@ internal class MessagePackKeyedDecodingContainer<K : CodingKey> : KeyedDecodingC
   }
 
   func decode(_ type: Bool.Type, forKey key: K) throws -> Bool {
-    return try self.decoder.unbox(extractValue(forKey: key), as: type)
+    return try self.decoder.unbox(extractValue(forKey: key), type: type)
   }
 
   func decode(_ type: Int.Type, forKey key: K) throws -> Int {
-    return try self.decoder.unbox(extractValue(forKey: key), as: type)
+    return try self.decoder.unbox(extractValue(forKey: key), type: type)
   }
 
   func decode(_ type: Int8.Type, forKey key: K) throws -> Int8 {
-    return try self.decoder.unbox(extractValue(forKey: key), as: type)
+    return try self.decoder.unbox(extractValue(forKey: key), type: type)
   }
 
   func decode(_ type: Int16.Type, forKey key: K) throws -> Int16 {
-    return try Int16(self.decoder.unbox(extractValue(forKey: key), as: type))
+    return try Int16(self.decoder.unbox(extractValue(forKey: key), type: type))
   }
 
   func decode(_ type: Int32.Type, forKey key: K) throws -> Int32 {
-    return try Int32(self.decoder.unbox(extractValue(forKey: key), as: type))
+    return try Int32(self.decoder.unbox(extractValue(forKey: key), type: type))
   }
 
   func decode(_ type: Int64.Type, forKey key: K) throws -> Int64 {
-    return try self.decoder.unbox(extractValue(forKey: key), as: type)
+    return try self.decoder.unbox(extractValue(forKey: key), type: type)
   }
 
   func decode(_ type: UInt.Type, forKey key: K) throws -> UInt {
-    return try UInt(self.decoder.unbox(extractValue(forKey: key), as: type))
+    return try UInt(self.decoder.unbox(extractValue(forKey: key), type: type))
   }
 
   func decode(_ type: UInt8.Type, forKey key: K) throws -> UInt8 {
-    return try UInt8(self.decoder.unbox(extractValue(forKey: key), as: type))
+    return try UInt8(self.decoder.unbox(extractValue(forKey: key), type: type))
   }
 
   func decode(_ type: UInt16.Type, forKey key: K) throws -> UInt16 {
-    return try UInt16(self.decoder.unbox(extractValue(forKey: key), as: type))
+    return try UInt16(self.decoder.unbox(extractValue(forKey: key), type: type))
   }
 
   func decode(_ type: UInt32.Type, forKey key: K) throws -> UInt32 {
-    return try UInt32(self.decoder.unbox(extractValue(forKey: key), as: type))
+    return try UInt32(self.decoder.unbox(extractValue(forKey: key), type: type))
   }
 
   func decode(_ type: UInt64.Type, forKey key: K) throws -> UInt64 {
-    return try self.decoder.unbox(extractValue(forKey: key), as: type)
+    return try self.decoder.unbox(extractValue(forKey: key), type: type)
   }
 
   func decode(_ type: Float.Type, forKey key: K) throws -> Float {
-    return try self.decoder.unbox(extractValue(forKey: key), as: type)
+    return try self.decoder.unbox(extractValue(forKey: key), type: type)
   }
 
   func decode(_ type: Double.Type, forKey key: K) throws -> Double {
-    return try self.decoder.unbox(extractValue(forKey: key), as: type)
+    return try self.decoder.unbox(extractValue(forKey: key), type: type)
   }
 
   func decode(_ type: String.Type, forKey key: K) throws -> String {
-    return try self.decoder.unbox(extractValue(forKey: key), as: type)
+    return try self.decoder.unbox(extractValue(forKey: key), type: type)
   }
 }

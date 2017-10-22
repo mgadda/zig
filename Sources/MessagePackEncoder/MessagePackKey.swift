@@ -22,9 +22,9 @@ internal struct MessagePackKey : CodingKey {
   }
 
   internal init(index: Int) {
-    self.stringValue = "Index \(index)"
+    self.stringValue = "index=\(index)"
     self.intValue = index
   }
 
-  internal static let `super` = MessagePackKey(stringValue: "super")!
+  internal static let superKey = MessagePackKey(stringValue: "super")!
 }

@@ -66,7 +66,7 @@ internal class MessagePackKeyedEncodingContainer<K : CodingKey> : KeyedEncodingC
   }
 
   func superEncoder() -> Encoder {
-    return MessagePackReferencingEncoder(referencing: self.encoder, at: MessagePackKey.super, wrapping: self.container)
+    return MessagePackReferencingEncoder(referencing: self.encoder, at: MessagePackKey.superKey, wrapping: self.container)
   }
 
   func superEncoder(forKey key: MessagePackKeyedEncodingContainer.Key) -> Encoder {
