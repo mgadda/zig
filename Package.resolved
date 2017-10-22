@@ -1,0 +1,25 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "CryptoSwift",
+        "repositoryURL": "https://github.com/krzyzanowskim/CryptoSwift.git",
+        "state": {
+          "branch": null,
+          "revision": "daafe952bf379bc176d6970cf52bb3747d264fcb",
+          "version": "0.7.2"
+        }
+      },
+      {
+        "package": "MessagePack",
+        "repositoryURL": "https://github.com/a2/MessagePack.swift.git",
+        "state": {
+          "branch": null,
+          "revision": "769306f5d21d0bbd9b5c72b3a5bf4d3095cf06a6",
+          "version": "2.1.0"
+        }
+      }
+    ]
+  },
+  "version": 1
+}

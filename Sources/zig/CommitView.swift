@@ -36,16 +36,12 @@ struct CommitIterator : IteratorProtocol {
   mutating func next() -> Commit? {
     guard
       let nextObjectId = maybeNextObjectId,
-      let object = repository.readObject(id: nextObjectId) else {
+      let commit = repository.readObject(id: nextObjectId, type: Commit.self) else {
         return nil
     }
 
-    switch object {
-      case let commit as Commit:
-        maybeNextObjectId = commit.parentId
-        return commit
-      default: break
-    }
-    return nil
+    
+    maybeNextObjectId = commit.parentId
+    return commit
   }
 }

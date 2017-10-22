@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import MessagePackEncoder
 
 class Repository {
   let rootUrl: URL // working tree
@@ -65,10 +66,29 @@ class Repository {
     )
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    NSKeyedArchiver.archiveRootObject(object, toFile: fileURL.path)
+    let encoder = MessagePackEncoder()
+    let data: Data?
+    switch object {
+    case let blob as Blob:
+      data = try? encoder.encode(blob)
+      break
+    case let tree as Tree:
+      data = try? encoder.encode(tree)
+      break
+    case let commit as Commit:
+      data = try? encoder.encode(commit)
+      break
+    default:
+      data = nil
+      break
+    }
+
+    if data != nil {
+      Repository.fileman.createFile(atPath: fileURL.path, contents: data, attributes: nil)
+    }
   }
 
-  func readObject(id: Data) -> ObjectLike? {
+  private func loadObjectData(id: Data) -> Data? {
     let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
 
     let (objIdPrefix, filename) = splitId(id: id)
@@ -76,7 +96,14 @@ class Repository {
     let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    return NSKeyedUnarchiver.unarchiveObject(withFile: fileURL.path) as? ObjectLike
+    return try? Data(contentsOf: fileURL)
+  }
+
+  func readObject<T: Decodable>(id: Data, type: T.Type) -> T? {
+    let decoder = MessagePackDecoder()
+    return loadObjectData(id: id).flatMap {
+      try? decoder.decode(type, from: $0)
+    }
   }
 
   func hashFile(filename: String) -> ObjectLike {
@@ -172,13 +199,16 @@ class Repository {
       let object: ObjectLike
       if url.hasDirectoryPath {
 
-        // recurse to produce object
+        // recurse to produce object (tree or blob)
         object = _snapshot(startingAt: url)
+        writeObject(object: object)
+        return Entry(permissions: perms, objectId: object.id, objectType: "tree", name: url.lastPathComponent)        
+
       } else {
         object = Blob(content: try! Data(contentsOf: url))
+        writeObject(object: object)
+        return Entry(permissions: perms, objectId: object.id, objectType: "blob", name: url.lastPathComponent)
       }
-      writeObject(object: object)
-      return Entry(permissions: perms, objectId: object.id, name: url.lastPathComponent)
     }
 
     let topLevelTree = Tree(entries: entries)
@@ -186,9 +216,30 @@ class Repository {
     return topLevelTree
   }
 
-  func checkout(branchName: String) {
-
-  }
+//  func checkout(ref: Reference) {
+//    // resolve ref into commit
+//    // read commit object
+//    // checkout top level tree contains recursively
+//    // don't delete things that haven't changed
+//    guard case let .commit(commitId) = resolve(ref) else {
+//      print("This is not a commit")
+//      return
+//    }
+//
+//    guard let commit as? Commit = readObject(id: commitId) else {
+//      print("This not a commit object")
+//      return
+//    }
+//  }
+//
+//  private func changeSet() -> (removed: Set<Entry>, added: Set<Entry>, changed: Set<Entry>) {
+//    let tree: Tree
+//    let tree2: Tree
+//
+//    let left = Set(tree.entries)
+//    let right = Set(tree2.entries)
+//
+//  }
 
   func getHEADContents() -> String {
     let headContents = try! Data(contentsOf: HEADUrl)
@@ -225,7 +276,7 @@ class Repository {
       maxSplits: 2,
       omittingEmptySubsequences: true
     ).map(String.init)
-    
+
     let tagOrBranchName = refComponents.popLast()!
 
     if refComponents.last == "heads" {
@@ -238,8 +289,8 @@ class Repository {
       }
     } else {
       // search heads, then search tags for match
-      return findFile(filename: tagOrBranchName, directory: branchHeadsUrl).map {
-        Reference.branch($0.lastPathComponent)
+      return findFile(filename: tagOrBranchName, directory: branchHeadsUrl).map { p in
+        Reference.branch(p.lastPathComponent)
         } ?? findFile(filename: tagOrBranchName, directory: tagsUrl).map {
           Reference.tag($0.lastPathComponent)
       }
@@ -255,6 +306,28 @@ class Repository {
     }
     return parseSymbolicRef(ref: str)
   }
+
+  // Attempt to expand a partial id into a full id
+  private func expandPartialId(_ id: String) -> String? {
+    let (prefix, partialSuffix) = (String(id.characters.prefix(2)), String(id.characters.dropFirst(2)))
+    let prefixedUrl = objectDir.appendingPathComponent(prefix, isDirectory: true)
+
+    let objectUrls = try! Repository.fileman.contentsOfDirectory(
+      at: prefixedUrl,
+      includingPropertiesForKeys: [],
+      options: FileManager.DirectoryEnumerationOptions.skipsHiddenFiles)
+
+    let candidateUrls = objectUrls.filter { $0.lastPathComponent.hasPrefix(partialSuffix) }
+
+    if candidateUrls.count > 1 {
+      print("warning: ambiguous ref")
+    }
+
+    return candidateUrls.first.map { url in
+      return prefix + url.lastPathComponent
+    }
+  }
+
   // Attempt to resolve a String into something that
   // represents a commit object.
   // If full is false, resolve will stop only one step from the input.
@@ -292,28 +365,15 @@ class Repository {
       return resolveBranchOrTag(name, path: "tags").flatMap { resolve($0) }
 
     case let .commit(id):
+      guard id.characters.count >= 6 else {
+        return nil
+      }
+
       if id.characters.count == 40 {
         return ref
       } else {
-        let (prefix, partialSuffix) = (String(id.characters.prefix(2)), String(id.characters.dropFirst(2)))
-        let prefixedUrl = objectDir.appendingPathComponent(prefix, isDirectory: true)
-
-        let objectUrls = try! Repository.fileman.contentsOfDirectory(
-          at: prefixedUrl,
-          includingPropertiesForKeys: [],
-          options: FileManager.DirectoryEnumerationOptions.skipsHiddenFiles)
-
-        let candidateUrls = objectUrls.filter { $0.lastPathComponent.hasPrefix(partialSuffix) }
-
-        if candidateUrls.count > 1 {
-          print("warning: ambiguous ref")
-        }
-
-        return candidateUrls.first.map { url in
-          return .commit((prefix + url.lastPathComponent))
-        }
+        return expandPartialId(id).map { .commit($0) }        
       }
-
     }
   }
 
@@ -321,6 +381,8 @@ class Repository {
     return resolve(.unknown(ref))
   }
 
+  // TODO: this entire method could be much more easily
+  // implemented in bash
   class func initRepo() -> Repository? {
     let cwdUrl = URL(fileURLWithPath: fileman.currentDirectoryPath)
     let zigDir = cwdUrl.appendingPathComponent(".zig")
@@ -332,10 +394,16 @@ class Repository {
 
     try! fileman.createDirectory(at: zigDir, withIntermediateDirectories: false, attributes: nil)
 
-    fileman.createFile(atPath: zigDir.appendingPathComponent("HEAD").path, contents: Data(), attributes: nil)
+    fileman.createFile(atPath: zigDir.appendingPathComponent("HEAD").path, contents: "refs/heads/master".data(using: .utf8), attributes: nil)
 
     let headsDir = zigDir.appendingPathComponent("refs").appendingPathComponent("heads")
     try! fileman.createDirectory(at: headsDir, withIntermediateDirectories: true, attributes: nil)
+
+    fileman.createFile(
+      atPath: headsDir.appendingPathComponent("master", isDirectory: false).path,
+      contents: nil,
+      attributes: nil
+    )
 
     let tagsDir = zigDir.appendingPathComponent("refs").appendingPathComponent("tags")
     try! fileman.createDirectory(at: tagsDir, withIntermediateDirectories: true, attributes: nil)
