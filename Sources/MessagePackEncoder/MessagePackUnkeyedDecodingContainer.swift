@@ -67,10 +67,10 @@ class MessagePackUnkeyedDecodingContainer : UnkeyedDecodingContainer {
   /// Decode non-standard types (i.e. your own types)
   func decode<T>(_ type: T.Type) throws -> T where T : Decodable {
     try expectNotAtEnd(type)
-    self.currentIndex += 1
     guard let value = try decoder.unbox(self.container[self.currentIndex], type: type) else {
       throw DecodingError.valueNotFound(type, DecodingError.Context(codingPath: self.decoder.codingPath, debugDescription: "Expected \(type) but found nil"))
     }
+    self.currentIndex += 1
     return value
   }
 
@@ -85,91 +85,105 @@ class MessagePackUnkeyedDecodingContainer : UnkeyedDecodingContainer {
 
   func expectNotAtEnd(_ type: Any.Type) throws {
     guard !self.isAtEnd else {
-      throw DecodingError.valueNotFound(Any?.self, DecodingError.Context(codingPath: self.decoder.codingPath + [MessagePackKey(index: self.currentIndex)], debugDescription: "Expected to not be at end of unkeyed container."))
+      throw DecodingError.valueNotFound(type, DecodingError.Context(codingPath: self.decoder.codingPath + [MessagePackKey(index: self.currentIndex)], debugDescription: "Expected to not be at end of unkeyed container."))
     }
   }
 
   func decode(_ type: Bool.Type) throws -> Bool {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: Int.Type) throws -> Int {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: Int8.Type) throws -> Int8 {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: Int16.Type) throws -> Int16 {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: Int32.Type) throws -> Int32 {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: Int64.Type) throws -> Int64 {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: UInt.Type) throws -> UInt {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: UInt8.Type) throws -> UInt8 {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: UInt16.Type) throws -> UInt16 {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: UInt32.Type) throws -> UInt32 {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: UInt64.Type) throws -> UInt64 {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: Float.Type) throws -> Float {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: Double.Type) throws -> Double {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 
   func decode(_ type: String.Type) throws -> String {
     try expectNotAtEnd(type)
+    let value = try decoder.unbox(self.container[self.currentIndex], type: type)
     self.currentIndex += 1
-    return try decoder.unbox(self.container[self.currentIndex], type: type)
+    return value
   }
 }
