@@ -9,5 +9,6 @@
 import Foundation
 
 enum ZigError : Error {
-  case DataError(String)
+  case dataError(String)
+  case genericError(String)
 }

@@ -127,7 +127,7 @@ switch (realArgCount, CommandLine.arguments[1], Array(CommandLine.arguments.drop
       id = args[0]
     }
 
-    guard let ref = repo.resolve(.unknown(id)),
+    guard let ref = repo.resolve(ref: id),
       case let .commit(objectId) = ref else {
       fatalError("Not a valid ref")
     }
@@ -209,6 +209,17 @@ switch (realArgCount, CommandLine.arguments[1], Array(CommandLine.arguments.drop
     }
 
     print(resolved.description())
+    break
+
+case let(2, "checkout", args):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+  do {
+    try repo.checkout(ref: .unknown(args[0]))
+  } catch ZigError.genericError(let msg) {
+    print(msg)
+  }
 
   break
 

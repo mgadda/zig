@@ -124,22 +124,17 @@ class Repository {
 
   func snapshot() -> ObjectLike {
     // TODO: CTRL+C to bail out
-    print("Snapshot message: ", terminator: "")
+    print("Snapshot message (press ENTER when finished): ", terminator: "")
     let msg = readLine()!
 
     let topLevelTree = _snapshot(startingAt: rootUrl)
 
     let headContents = getHEADContents()
-    let parentId: Data? = resolve(.unknown(headContents)).flatMap {
-      guard case let .commit(id) = $0 else {
-        return nil
-      }
-      return id.base16DecodedData()
-    }
+    let parentId: Data? = resolve(.head)?.commit?.base16DecodedData()
 
     let commit = Commit(
       parentId: parentId,
-      author: Author(name: "Matt Gadda", email: "mgadda@gmail.com"),
+      author: Author(name: "Matt Gadda", email: "<mgadda@gmail.com>"), // TODO: move to .zig/config
       createdAt: Date(),
       treeId: topLevelTree.id,
       message: msg)
@@ -178,7 +173,7 @@ class Repository {
     trounce(HEADUrl, content: content)
   }
 
-  // Overwrite file with new content, create it if it doesn't already exist
+  /// Overwrite file with new content, create it if it doesn't already exist
   private func trounce(_ url: URL, content: Data) {
     if let file = FileHandle(forUpdatingAtPath: url.path) {
       file.truncateFile(atOffset: 0)
@@ -194,7 +189,7 @@ class Repository {
 
     let entries = urls.map { (url: URL) -> Entry in
       let attributes = try! FileManager.default.attributesOfItem(atPath: url.path)
-      let perms = attributes[FileAttributeKey.posixPermissions] as? Int ?? 0
+      let perms = attributes[FileAttributeKey.posixPermissions] as? Int ?? 0 // TODO: 0 is probably not correct
 
       let object: ObjectLike
       if url.hasDirectoryPath {
@@ -216,21 +211,106 @@ class Repository {
     return topLevelTree
   }
 
-//  func checkout(ref: Reference) {
-//    // resolve ref into commit
-//    // read commit object
-//    // checkout top level tree contains recursively
-//    // don't delete things that haven't changed
-//    guard case let .commit(commitId) = resolve(ref) else {
-//      print("This is not a commit")
-//      return
-//    }
-//
-//    guard let commit as? Commit = readObject(id: commitId) else {
-//      print("This not a commit object")
-//      return
-//    }
-//  }
+  func checkout(ref: Reference) throws {
+    // resolve ref into commit
+    // read commit object
+    // checkout top level tree contains recursively
+    // don't delete things that haven't changed
+    guard
+      let commitRef = resolve(ref),
+      let commitId = commitRef.commit else {
+      print("Could not resolve to ref")
+      return
+    }
+
+    guard let commit = readObject(id: commitId.base16DecodedData(), type: Commit.self) else {
+      print("\(ref) is not a commit object")
+      return
+    }
+
+    guard let newTree = readObject(id: commit.treeId, type: Tree.self) else {
+      print("Zig database is probably corrupted because \(commit.treeId) does not exist")
+      return
+    }
+
+    guard let currentHeadCommitId = resolve(.head)?.commit?.base16DecodedData() else {
+      print("Zig HEAD contains invalid ref")
+      return
+    }
+
+    guard let currentHeadCommit = readObject(id: currentHeadCommitId, type: Commit.self) else {
+      print("Zig database is probably corrupted because \(currentHeadCommitId) does not exist")
+      return
+    }
+
+    guard let currentTree = readObject(id: currentHeadCommit.treeId, type: Tree.self) else {
+      print("Zig database is probably corrupted because \(commit.treeId) does not exist")
+      return
+    }
+
+    // TODO: handle error. what's our failure strategy here? leave things in
+    // broken state? restore to previous state?
+    if newTree.id != currentTree.id {
+      try _deleteTree(tree: currentTree, at: rootUrl)
+      try _checkoutTree(tree: newTree, at: rootUrl)
+    }
+
+    // This is a bit ugly: run resolution just one step or two steps depending
+    // on what we're attempting to check out.
+    switch identifyUnknown(ref.fullyQualifiedName) {
+    case let .branch(name)?: updateHEAD(branch: name)
+    case .tag?: updateHEAD(commitId: commit.id)
+    case .commit?: updateHEAD(commitId: commit.id)
+    default:
+      break // don't update HEAD
+    }
+  }
+
+  private func _deleteTree(tree: Tree, at cwd: URL) throws {
+    let blobEntries = tree.entries.filter { $0.objectType == "blob" }
+    let subtreeEntries = tree.entries.filter { $0.objectType == "tree" }
+
+    for blobEntry in blobEntries {
+      let file = cwd.appendingPathComponent(blobEntry.name)
+      try? Repository.fileman.removeItem(at: file)
+    }
+
+    for subtreeEntry in subtreeEntries {
+      let newCwd = cwd.appendingPathComponent(subtreeEntry.name)
+      guard let subtree = readObject(id: subtreeEntry.objectId, type: Tree.self) else {
+        throw ZigError.genericError("Zig database is probably corrupted because tree \(subtreeEntry.objectId) does not exist")
+      }
+      try _deleteTree(tree: subtree, at: newCwd)
+      let file = cwd.appendingPathComponent(subtreeEntry.name)
+      try? Repository.fileman.removeItem(at: file)
+    }
+  }
+
+  private func _checkoutTree(tree: Tree, at cwd: URL) throws {
+    let blobEntries = tree.entries.filter { $0.objectType == "blob" }
+    let subtreeEntries = tree.entries.filter { $0.objectType == "tree" }
+
+    for blobEntry in blobEntries {
+      let file = cwd.appendingPathComponent(blobEntry.name)
+      guard let blob = readObject(id: blobEntry.objectId, type: Blob.self) else {
+        throw ZigError.genericError("Could not find object with id \(blobEntry.objectId)")
+      }
+      Repository.fileman.createFile(atPath: file.path, contents: blob.content, attributes: [FileAttributeKey.posixPermissions : blobEntry.permissions])
+    }
+
+    for subtreeEntry in subtreeEntries {
+      let newCwd = cwd.appendingPathComponent(subtreeEntry.name)
+      guard let subtree = readObject(id: subtreeEntry.objectId, type: Tree.self) else {
+        throw ZigError.genericError("Could not find object with id \(subtreeEntry.objectId)")
+      }
+
+      let subtreePath = cwd.appendingPathComponent(subtreeEntry.name)
+      try Repository.fileman.createDirectory(at: subtreePath, withIntermediateDirectories: true, attributes: [FileAttributeKey.posixPermissions : subtreeEntry.permissions])
+
+      try _checkoutTree(tree: subtree, at: newCwd)
+
+    }
+  }
 //
 //  private func changeSet() -> (removed: Set<Entry>, added: Set<Entry>, changed: Set<Entry>) {
 //    let tree: Tree
@@ -247,14 +327,14 @@ class Repository {
   }
 
   func resolveBranchOrTag(_ name: String, path: String) -> Reference? {
-    let branchFileUrl = rootUrl
+    let refURL = rootUrl
       .appendingPathComponent(".zig", isDirectory: true)
       .appendingPathComponent("refs", isDirectory: true)
       .appendingPathComponent(path, isDirectory: true)
       .appendingPathComponent(name)
 
-    if let contents = try? String(contentsOfFile: branchFileUrl.path) {
-      return Reference.commit(contents)
+    if let contents = try? String(contentsOfFile: refURL.path) {
+      return Reference.commit(contents.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines))
     }
     return nil
   }
@@ -419,18 +499,59 @@ indirect enum Reference {
   case tag(String)
   case commit(String)
 
-  func description() -> String {
+  var fullyQualifiedName: String {
     switch self {
-    case let .unknown(s):
-      return "Could not resolve \(s)"
-    case .head:
-      return "HEAD"
-    case let .branch(name):
-      return "refs/heads/\(name)"
-    case let .tag(name):
-      return "refs/tags/\(name)"
-    case let .commit(id):
-      return id
+    case let .unknown(name): return name
+    case .head: return "HEAD"
+    case let .branch(name): return "refs/heads/\(name)"
+    case let .tag(name): return "refs/tags/\(name)"
+    case let .commit(id): return id
+    }
+  }
+
+  func description() -> String {
+    return fullyQualifiedName
+  }
+}
+
+extension Reference {
+  var unknown: String? {
+    if case let .unknown(value) = self {
+      return value
+    } else {
+      return nil
+    }
+  }
+
+  var head: Bool {
+    if case .head = self {
+      return true
+    } else {
+      return false
+    }
+  }
+
+  var branch: String? {
+    if case let .branch(value) = self {
+      return value
+    } else {
+      return nil
+    }
+  }
+
+  var tag: String? {
+    if case let .tag(value) = self {
+      return value
+    } else {
+      return nil
+    }
+  }
+
+  var commit: String? {
+    if case let .commit(value) = self {
+      return value
+    } else {
+      return nil
     }
   }
 }
