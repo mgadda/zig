@@ -77,139 +77,139 @@ enum OutputFormat {
 }
 
 switch (realArgCount, CommandLine.arguments[1], Array(CommandLine.arguments.dropFirst(2))) {
-  case (1, "init", _):
-    guard let _ = Repository.initRepo() else {
-      exit(1)
-    }
+
+case (1, "init", _):
+  guard let _ = Repository.initRepo() else {
+    exit(1)
+  }
+  break
+
+case let (2...3, "hash", args):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+
+  var outputFormat: OutputFormat = .human(verbose: true)
+  var filename: String
+  if args.count >= 1 && args[0] == "--json" {
+    outputFormat = .json
+    filename = args[1]
+  } else {
+    filename = args[0]
+  }
+
+  let object = repo.hashFile(filename: filename)
+  switch outputFormat {
+  case let .human(verbose):
+    print("id: ", object.id.base16EncodedString())
+    print(object.description(repository: repo, verbose: verbose))
     break
+  case .json:
+    let objectForEncoding = ObjectContainer(object: object)
+    print(String(data: try! JSONEncoder().encode(objectForEncoding), encoding: .utf8)!)
 
-  case let (2...3, "hash", args):
-    guard let repo = Repository() else {
-      exit(1)
-    }
+    break
+  }
 
-    var outputFormat: OutputFormat = .human(verbose: true)
-    var filename: String
-    if args.count >= 1 && args[0] == "--json" {
-      outputFormat = .json
-      filename = args[1]
-    } else {
-      filename = args[0]
-    }
+  break
 
-    let object = repo.hashFile(filename: filename)
+case let (2...3, "cat", args):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+
+  var outputFormat: OutputFormat = .human(verbose: true)
+
+  let id: String
+  if args.count >= 1 && args[0] == "--json" {
+    outputFormat = .json
+    id = args[1]
+  } else {
+    id = args[0]
+  }
+
+  guard let ref = repo.resolve(ref: id),
+    case let .commit(objectId) = ref else {
+    fatalError("Not a valid ref")
+  }
+
+
+  let encoder = JSONEncoder()
+  // TODO: define date and data encoding strategies here
+
+  // This is kind gross: Attempt to read this object as
+  // each of the known types until we get back .some(thing)
+  // TODO: fix this
+  if let blob = repo.readObject(id: objectId.base16DecodedData(), type: Blob.self) {
+
     switch outputFormat {
     case let .human(verbose):
-      print("id: ", object.id.base16EncodedString())
-      print(object.description(repository: repo, verbose: verbose))
-      break
+      print(blob.description(repository: repo, verbose: verbose))
     case .json:
-      let objectForEncoding = ObjectContainer(object: object)
-      print(String(data: try! JSONEncoder().encode(objectForEncoding), encoding: .utf8)!)
-
-      break
+      let objectForEncoding = ObjectContainer(object: blob)
+      print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
     }
 
-    break
+  } else if let tree = repo.readObject(id: objectId.base16DecodedData(), type: Tree.self) {
 
-  case let (2...3, "cat", args):
-    guard let repo = Repository() else {
-      exit(1)
+    switch outputFormat {
+    case let .human(verbose):
+      print(tree.description(repository: repo, verbose: verbose))
+    case .json:
+      let objectForEncoding = ObjectContainer(object: tree)
+      print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
     }
 
-    var outputFormat: OutputFormat = .human(verbose: true)
+  } else if let commit = repo.readObject(id: objectId.base16DecodedData(), type: Commit.self) {
 
-    let id: String
-    if args.count >= 1 && args[0] == "--json" {
-      outputFormat = .json
-      id = args[1]
-    } else {
-      id = args[0]
+    switch outputFormat {
+    case let .human(verbose):
+      print(commit.description(repository: repo, verbose: verbose))
+    case .json:
+      let objectForEncoding = ObjectContainer(object: commit)
+      print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
     }
 
-    guard let ref = repo.resolve(ref: id),
-      case let .commit(objectId) = ref else {
-      fatalError("Not a valid ref")
-    }
+  } else {
+    print("Unknown object")
+  }
 
+case (1, "snapshot", _):
+  guard let repo = Repository() else {
+    exit(1)
+  }
 
-    let encoder = JSONEncoder()
-    // TODO: define date and data encoding strategies here
+  let _ = repo.snapshot()
+  break
 
-    // This is kind gross: Attempt to read this object as
-    // each of the known types until we get back .some(thing)
-    // TODO: fix this
-    if let blob = repo.readObject(id: objectId.base16DecodedData(), type: Blob.self) {
+case (1, "log", _):
+  guard let repo = Repository() else {
+    exit(1)
+  }
 
-      switch outputFormat {
-      case let .human(verbose):
-        print(blob.description(repository: repo, verbose: verbose))
-      case .json:
-        let objectForEncoding = ObjectContainer(object: blob)
-        print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
-      }
+  let pipe = Pipe()
+  let less = Process()
+  less.launchPath = "/usr/bin/env"
+  less.arguments = ["less", "-R", "-X"]
+  less.standardInput = pipe
 
-    } else if let tree = repo.readObject(id: objectId.base16DecodedData(), type: Tree.self) {
+  for commit in repo.commits {
+    pipe.fileHandleForWriting.write(commit.description(repository: repo).data(using: .utf8)!)
+  }
 
-      switch outputFormat {
-      case let .human(verbose):
-        print(tree.description(repository: repo, verbose: verbose))
-      case .json:
-        let objectForEncoding = ObjectContainer(object: tree)
-        print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
-      }
+  less.launch()
+  pipe.fileHandleForWriting.closeFile()
 
-    } else if let commit = repo.readObject(id: objectId.base16DecodedData(), type: Commit.self) {
+case let (2, "resolve", args):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+  guard let resolved = repo.resolve(ref: args[0]) else {
+    print("Could not resolve ref")
+    exit(1)
+  }
 
-      switch outputFormat {
-      case let .human(verbose):
-        print(commit.description(repository: repo, verbose: verbose))
-      case .json:
-        let objectForEncoding = ObjectContainer(object: commit)
-        print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
-      }
-
-    } else {
-      print("Unknown object")
-    }
-
-  case (1, "snapshot", _):
-    guard let repo = Repository() else {
-      exit(1)
-    }
-
-    let _ = repo.snapshot()
-    break
-
-  case (1, "log", _):
-    guard let repo = Repository() else {
-      exit(1)
-    }
-
-    let pipe = Pipe()
-    let less = Process()
-    less.launchPath = "/usr/bin/env"
-    less.arguments = ["less", "-R", "-X"]
-    less.standardInput = pipe
-
-    for commit in repo.commits {
-      pipe.fileHandleForWriting.write(commit.description(repository: repo).data(using: .utf8)!)
-    }
-
-    less.launch()
-    pipe.fileHandleForWriting.closeFile()
-
-  case let (2, "resolve", args):
-    guard let repo = Repository() else {
-      exit(1)
-    }
-    guard let resolved = repo.resolve(ref: args[0]) else {
-      print("Could not resolve ref")
-      exit(1)
-    }
-
-    print(resolved.description())
-    break
+  print(resolved.description())
 
 case let(2, "checkout", args):
   guard let repo = Repository() else {
@@ -221,7 +221,11 @@ case let(2, "checkout", args):
     print(msg)
   }
 
-  break
+case let(3, "tag", args):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+  repo.tag(args[0], ref: .unknown(args[1]))
 
   default:
     printHelp()

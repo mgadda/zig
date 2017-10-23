@@ -490,6 +490,16 @@ class Repository {
 
     return Repository()
   }
+
+  /// Create tag with name pointing to ref
+  func tag(_ name: String, ref: Reference) {
+    let tagURL = tagsUrl.appendingPathComponent(name)
+    guard let commitId = resolve(ref)?.commit else {
+      print("Could not resolve \(ref)")
+      return
+    }
+    trounce(tagURL, content: commitId.data(using: .utf8)!)
+  }
 }
 
 indirect enum Reference {
