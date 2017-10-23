@@ -61,10 +61,10 @@ struct Commit : ObjectLike {
 extension Commit : Codable {
   init(from decoder: Decoder) throws {
     let values = try decoder.container(keyedBy: CodingKeys.self)
-    parentId = try values.decodeIfPresent(String.self, forKey: .parentId).map { $0.base16DecodedData() }
+    parentId = try values.decodeIfPresent(Data.self, forKey: .parentId)
     author = try values.decode(Author.self, forKey: .author)
     createdAt = try values.decode(Date.self, forKey: .createdAt)
-    treeId = try values.decode(String.self, forKey: .treeId).base16DecodedData()
+    treeId = try values.decode(Data.self, forKey: .treeId)
     message = try values.decode(String.self, forKey: .message)
   }
 
@@ -73,7 +73,7 @@ extension Commit : Codable {
     try container.encodeIfPresent(parentId, forKey: .parentId)
     try container.encode(author, forKey: .author)
     try container.encode(createdAt, forKey: .createdAt)
-    try container.encode(treeId.base16EncodedString(), forKey: .treeId)
+    try container.encode(treeId, forKey: .treeId)
     try container.encode(message, forKey: .message)
   }
 
