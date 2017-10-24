@@ -221,11 +221,17 @@ case let(2, "checkout", args):
     print(msg)
   }
 
-case let(3, "tag", args):
+case let(_, "tag", args):
   guard let repo = Repository() else {
     exit(1)
   }
-  repo.tag(args[0], ref: .unknown(args[1]))
+  var tagArgs = args
+  guard let name = tagArgs.first else {
+    fatalError("Missing tag name as first argument")
+  }
+  tagArgs.removeFirst()
+
+  repo.tag(name, ref: tagArgs.first.map { .unknown($0) } )
 
   default:
     printHelp()
