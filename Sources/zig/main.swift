@@ -23,54 +23,6 @@ if realArgCount < 1 {
   printHelp()
 }
 
-struct ObjectContainer : Encodable {
-  let id: String
-  let type: String
-  let object: ObjectLike
-
-  init(object: ObjectLike) {
-    self.id = object.id.base16EncodedString()
-    self.object = object
-    switch object {
-    case is Blob:
-      type = "blob"
-      break
-    case is Tree:
-      type = "tree"
-      break
-    case is Commit:
-      type = "commit"
-      break
-    default:
-      fatalError("Object type not supported for JSON encoding")
-      break
-    }
-  }
-  enum CodingKeys : CodingKey {
-    case id, type, object
-  }
-
-  func encode(to encoder: Encoder) throws {
-    var container = encoder.container(keyedBy: CodingKeys.self)
-    try container.encode(id, forKey: .id)
-    try container.encode(type, forKey: .type)
-    switch object {
-    case let blob as Blob:
-      try container.encode(blob, forKey: .object)
-      break
-    case let tree as Tree:
-      try container.encode(tree, forKey: .object)
-      break
-    case let commit as Commit:
-      try container.encode(commit, forKey: .object)
-      break
-    default:
-      fatalError("Object type not supported for JSON encoding")
-      break
-    }
-  }
-}
-
 enum OutputFormat {
   case human(verbose: Bool)
   case json
@@ -82,7 +34,6 @@ case (1, "init", _):
   guard let _ = Repository.initRepo() else {
     exit(1)
   }
-  break
 
 case let (2...3, "hash", args):
   guard let repo = Repository() else {
@@ -103,15 +54,11 @@ case let (2...3, "hash", args):
   case let .human(verbose):
     print("id: ", object.id.base16EncodedString())
     print(object.description(repository: repo, verbose: verbose))
-    break
+
   case .json:
     let objectForEncoding = ObjectContainer(object: object)
     print(String(data: try! JSONEncoder().encode(objectForEncoding), encoding: .utf8)!)
-
-    break
   }
-
-  break
 
 case let (2...3, "cat", args):
   guard let repo = Repository() else {
@@ -180,7 +127,6 @@ case (1, "snapshot", _):
   }
 
   let _ = repo.snapshot()
-  break
 
 case (1, "log", _):
   guard let repo = Repository() else {
@@ -231,9 +177,31 @@ case let(_, "tag", args):
   }
   tagArgs.removeFirst()
 
-  repo.tag(name, ref: tagArgs.first.map { .unknown($0) } )
+  repo.createTag(name, ref: tagArgs.first.map { .unknown($0) } )
 
-  default:
-    printHelp()
-    break
+case (1, "branch", _):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+  let out: String = repo.currentBranch ?? "Not currently on a branch"
+  print(out)
+
+case let(_, "branch", args):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+
+  var branchArgs = args
+  guard let name = branchArgs.first else {
+    fatalError("Missing branch name as first argument")
+  }
+  branchArgs.removeFirst()
+
+  repo.createBranch(name, ref: branchArgs.first.map { .unknown($0) } )
+
+//  repo.branch()
+
+default:
+  printHelp()
+  break
 }

@@ -42,6 +42,15 @@ class Repository {
     }
   }
 
+  var currentBranch: String? {
+    switch identifyUnknown(getHEADContents()) {
+    case let .branch(name)?:
+      return name
+    default:
+      return nil
+    }
+  }
+
   private class func findRepositoryRoot(
     startingAt cwd: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
   ) -> URL? {
@@ -492,7 +501,7 @@ class Repository {
   }
 
   /// Create tag with name pointing to ref
-  func tag(_ name: String, ref: Reference?) {
+  func createTag(_ name: String, ref: Reference?) {
     let tagURL = tagsUrl.appendingPathComponent(name)
 
     let tagRef = ref ?? resolve(.head)
@@ -503,72 +512,14 @@ class Repository {
     trounce(tagURL, content: commitId.data(using: .utf8)!)
   }
 
-}
+  func createBranch(_ name: String, ref: Reference?) {
+    let branchURL = branchHeadsUrl.appendingPathComponent(name)
 
-indirect enum Reference {
-  case unknown(String)
-  case head
-  case branch(String)
-  case tag(String)
-  case commit(String)
-
-  var fullyQualifiedName: String {
-    switch self {
-    case let .unknown(name): return name
-    case .head: return "HEAD"
-    case let .branch(name): return "refs/heads/\(name)"
-    case let .tag(name): return "refs/tags/\(name)"
-    case let .commit(id): return id
+    let branchRef = ref ?? resolve(.head)
+    guard let commitId = branchRef?.resolve(repository: self)?.commit else {
+      print("Could not resolve ref")
+      return
     }
-  }
-
-  func description() -> String {
-    return fullyQualifiedName
-  }
-}
-
-extension Reference {
-  func resolve(repository: Repository) -> Reference? {
-    return repository.resolve(self)
-  }
-
-  var unknown: String? {
-    if case let .unknown(value) = self {
-      return value
-    } else {
-      return nil
-    }
-  }
-
-  var head: Bool {
-    if case .head = self {
-      return true
-    } else {
-      return false
-    }
-  }
-
-  var branch: String? {
-    if case let .branch(value) = self {
-      return value
-    } else {
-      return nil
-    }
-  }
-
-  var tag: String? {
-    if case let .tag(value) = self {
-      return value
-    } else {
-      return nil
-    }
-  }
-
-  var commit: String? {
-    if case let .commit(value) = self {
-      return value
-    } else {
-      return nil
-    }
+    trounce(branchURL, content: commitId.data(using: .utf8)!)
   }
 }
