@@ -8,6 +8,7 @@
 
 import Foundation
 import MessagePackEncoder
+import Compression
 
 class Repository {
   let rootUrl: URL // working tree
