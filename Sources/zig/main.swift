@@ -60,6 +60,16 @@ case let (2...3, "hash", args):
     print(String(data: try! JSONEncoder().encode(objectForEncoding), encoding: .utf8)!)
   }
 
+case let(2, "rawcat", args):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+  guard let objectData = repo.loadObjectData(id: args[0].base16DecodedData()) else {
+    fatalError("Coud not load object data for \(args[0])")
+  }
+
+  print(String(data: objectData, encoding: .utf8)!)
+  
 case let (2...3, "cat", args):
   guard let repo = Repository() else {
     exit(1)
