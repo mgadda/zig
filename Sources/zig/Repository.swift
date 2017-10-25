@@ -93,12 +93,15 @@ class Repository {
       break
     }
 
-    if data != nil {
-      Repository.fileman.createFile(atPath: fileURL.path, contents: data, attributes: nil)
+    if let compressedData = data?.compress() {
+      Repository.fileman.createFile(atPath: fileURL.path, contents: compressedData, attributes: nil)
+    } else {
+      fatalError("BUG: Failed to write object due to encoding or compression issue")
     }
   }
 
-  private func loadObjectData(id: Data) -> Data? {
+  /// Load and uncompress raw object Data for object `id`
+  func loadObjectData(id: Data) -> Data? {
     let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
 
     let (objIdPrefix, filename) = splitId(id: id)
@@ -106,7 +109,7 @@ class Repository {
     let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    return try? Data(contentsOf: fileURL)
+    return (try? Data(contentsOf: fileURL))?.uncompress()
   }
 
   func readObject<T: Decodable>(id: Data, type: T.Type) -> T? {
