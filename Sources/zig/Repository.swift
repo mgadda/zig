@@ -94,12 +94,12 @@ class Repository {
 //    }
 
     let encoder = CMPEncoder()
-    if let compressedData = Optional<Data>.some(object.serialize(encoder: encoder)) {
+    object.serialize(encoder: encoder)
+    if let compressedData = encoder.buffer.compress() {
       Repository.fileman.createFile(atPath: fileURL.path, contents: compressedData, attributes: nil)
     } else {
       fatalError("BUG: Failed to write object due to encoding or compression issue")
     }
-
   }
 
   /// Load and uncompress raw object Data for object `id`
@@ -111,14 +111,14 @@ class Repository {
     let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    return (try? Data(contentsOf: fileURL))//?.uncompress()
+    return (try? Data(contentsOf: fileURL))?.uncompress()
   }
 
   func readObject<T: Decodable & Serializable>(id: Data, type: T.Type) -> T? {
 //    let decoder = MessagePackDecoder()
     return loadObjectData(id: id).flatMap {
 //      try? decoder.decode(type, from: $0)
-      let decoder = CMPDecoder(from: $0)
+      let decoder = CMPDecoder(from: $0)      
       return try? T(with: decoder)
     }
   }
@@ -526,4 +526,18 @@ class Repository {
     }
     trounce(branchURL, content: commitId.data(using: .utf8)!)
   }
+
+//  func show(_ path: String, ref: Reference) {
+////    let showUrl = rootUrl.appendingPathComponent(path)
+//    guard let commitId = resolve(ref).commit else {
+//      fatalError("Could not resolve ref")
+//    }
+//
+//    let components = path.split(separator: "/")
+//    guard let commit = readObject(id: commitId, type: Commit.self) else {
+//      fatalError("Could not read object with id \(commitId)")
+//    }
+//
+//    commit.treeId
+//  }
 }
