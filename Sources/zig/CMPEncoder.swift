@@ -184,7 +184,7 @@ class CMPDecoder {
     var size: UInt32 = 0
     freezingPosition { cmp_read_bin_size(&context, &size) }
     var value = Data(count: Int(size)) // TODO: potential data loss here for values > Int.max and < UInt32.max
-    value.withUnsafeMutableBytes { (ptr: UnsafeMutablePointer<UInt8>) -> Bool in
+    let _ = value.withUnsafeMutableBytes { (ptr: UnsafeMutablePointer<UInt8>) -> Bool in
       cmp_read_bin(&context, ptr, &size)
     }
     return value
