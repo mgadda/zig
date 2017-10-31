@@ -11,4 +11,5 @@ import Foundation
 enum ZigError : Error {
   case dataError(String)
   case genericError(String)
+  case decodingError(String)
 }

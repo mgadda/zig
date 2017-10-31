@@ -125,7 +125,11 @@ class CMPEncoder {
   }
 
   func write(_ value: String) {
-    write(value.data(using: .utf8)!)
+    let data = value.data(using: .utf8)!
+    data.withUnsafeBytes({ bytes in
+      cmp_write_str(&context, bytes, UInt32(data.count))
+    })
+
   }
 }
 
@@ -192,12 +196,17 @@ class CMPDecoder {
     bufferPosition = oldBufferPosition
   }
 
-  func read() -> String {
+  func read() throws -> String {
     var size: UInt32 = 0
     freezingPosition { cmp_read_str_size(&context, &size) }
+    size += 1 // cmp_read_str apparently expects this
     var value = Data(count: Int(size)) // TODO: potential data loss here for values > Int.max and < UInt32.max
-    value.withUnsafeMutableBytes { ptr in
+    let result = value.withUnsafeMutableBytes { ptr in
       cmp_read_str(&context, ptr, &size)
+    }
+
+    if !result {
+      throw ZigError.decodingError("Error code \(context.error)")
     }
 
     return String(data: value, encoding: .utf8)!
