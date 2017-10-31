@@ -55,7 +55,7 @@ extension Entry : Serializable {
   init(with decoder: CMPDecoder) throws {
     permissions = decoder.read()
     objectId = decoder.read()
-    objectType = decoder.read()
-    name = decoder.read()
+    objectType = try decoder.read()
+    name = try decoder.read()
   }
 }

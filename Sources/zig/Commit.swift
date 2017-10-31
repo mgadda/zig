@@ -99,13 +99,13 @@ extension Commit : Serializable {
 
   init(with decoder: CMPDecoder) throws {
     let maybeParentId: Data = decoder.read()
-    let authorName: String = decoder.read()
-    let authorEmail: String = decoder.read()
+    let authorName: String = try decoder.read()
+    let authorEmail: String = try decoder.read()
     author = Author(name: authorName, email: authorEmail)
     let createdAtInterval: Int = decoder.read()
     createdAt = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
     treeId = decoder.read()
-    message = decoder.read()
+    message = try decoder.read()
 
     if maybeParentId.count == 0 {
       parentId = nil
