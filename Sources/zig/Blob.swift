@@ -53,9 +53,8 @@ struct Blob : ObjectLike, Codable {
 }
 
 extension Blob : Serializable {
-  func serialize(encoder: CMPEncoder) -> Data {
-    encoder.write(content)
-    return encoder.buffer
+  func serialize(encoder: CMPEncoder) {
+    encoder.write(content)    
   }
   
   init(with decoder: CMPDecoder) throws {

@@ -9,7 +9,7 @@ import Foundation
 import CMP
 
 protocol Serializable {
-  func serialize(encoder: CMPEncoder) -> Data
+  func serialize(encoder: CMPEncoder)
 //  static func deserialize(with decoder: CMPDecoder) -> Self
   init(with decoder: CMPDecoder) throws
 }

@@ -86,16 +86,15 @@ extension Commit : Codable {
 
 
 extension Commit : Serializable {
-  func serialize(encoder: CMPEncoder) -> Data {
+  func serialize(encoder: CMPEncoder) {
     // TODO: support keyed containers so we don't have to encode empty field
+//    encoder.write("commit")
     encoder.write(parentId ?? Data())
     encoder.write(author.name)
     encoder.write(author.email)
     encoder.write(Int(createdAt.timeIntervalSince1970))
     encoder.write(treeId)
-    encoder.write(message)
-
-    return encoder.buffer
+    encoder.write(message)    
   }
 
   init(with decoder: CMPDecoder) throws {

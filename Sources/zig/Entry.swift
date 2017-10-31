@@ -45,12 +45,11 @@ struct Entry : Codable, Hashable {
 }
 
 extension Entry : Serializable {
-  func serialize(encoder: CMPEncoder) -> Data {
+  func serialize(encoder: CMPEncoder) {
     encoder.write(permissions)
     encoder.write(objectId)
     encoder.write(objectType)
-    encoder.write(name)
-    return encoder.buffer
+    encoder.write(name)    
   }
 
   init(with decoder: CMPDecoder) throws {

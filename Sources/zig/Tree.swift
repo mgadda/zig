@@ -42,9 +42,8 @@ struct Tree : ObjectLike, Codable {
 }
 
 extension Tree : Serializable {
-  func serialize(encoder: CMPEncoder) -> Data {
-    encoder.write(entries)
-    return encoder.buffer
+  func serialize(encoder: CMPEncoder) {
+    encoder.write(entries)    
   }
 
   init(with decoder: CMPDecoder) throws {
