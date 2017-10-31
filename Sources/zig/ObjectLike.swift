@@ -9,7 +9,7 @@
 import Foundation
 import CryptoSwift
 
-protocol ObjectLike : Codable {
+protocol ObjectLike : Codable, Serializable {
   var type: String { get }
   var id: Data { get }
   func description(repository: Repository, verbose: Bool) -> String

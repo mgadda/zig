@@ -40,3 +40,14 @@ struct Tree : ObjectLike, Codable {
     case entries
   }
 }
+
+extension Tree : Serializable {
+  func serialize(encoder: CMPEncoder) -> Data {
+    encoder.write(entries)
+    return encoder.buffer
+  }
+
+  static func deserialize(with decoder: CMPDecoder) -> Tree {
+    return Tree(entries: decoder.read())
+  }
+}

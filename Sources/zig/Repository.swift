@@ -76,28 +76,30 @@ class Repository {
     )
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    let encoder = MessagePackEncoder()
-    let data: Data?
-    switch object {
-    case let blob as Blob:
-      data = try? encoder.encode(blob)
-      break
-    case let tree as Tree:
-      data = try? encoder.encode(tree)
-      break
-    case let commit as Commit:
-      data = try? encoder.encode(commit)
-      break
-    default:
-      data = nil
-      break
-    }
+//    let encoder = MessagePackEncoder()
+//    let data: Data?
+//    switch object {
+//    case let blob as Blob:
+//      data = try? encoder.encode(blob)
+//      break
+//    case let tree as Tree:
+//      data = try? encoder.encode(tree)
+//      break
+//    case let commit as Commit:
+//      data = try? encoder.encode(commit)
+//      break
+//    default:
+//      data = nil
+//      break
+//    }
 
-    if let compressedData = data?.compress() {
+    let encoder = CMPEncoder()
+    if let compressedData = Optional<Data>.some(object.serialize(encoder: encoder)) {
       Repository.fileman.createFile(atPath: fileURL.path, contents: compressedData, attributes: nil)
     } else {
       fatalError("BUG: Failed to write object due to encoding or compression issue")
     }
+
   }
 
   /// Load and uncompress raw object Data for object `id`
@@ -109,13 +111,15 @@ class Repository {
     let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
-    return (try? Data(contentsOf: fileURL))?.uncompress()
+    return (try? Data(contentsOf: fileURL))//?.uncompress()
   }
 
-  func readObject<T: Decodable>(id: Data, type: T.Type) -> T? {
-    let decoder = MessagePackDecoder()
+  func readObject<T: Decodable & Serializable>(id: Data, type: T.Type) -> T? {
+//    let decoder = MessagePackDecoder()
     return loadObjectData(id: id).flatMap {
-      try? decoder.decode(type, from: $0)
+//      try? decoder.decode(type, from: $0)
+      let decoder = CMPDecoder(from: $0)
+      return T.deserialize(with: decoder)
     }
   }
 

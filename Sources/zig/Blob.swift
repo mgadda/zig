@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CMP
 
 struct Blob : ObjectLike, Codable {
   let content: Data
@@ -30,7 +31,37 @@ struct Blob : ObjectLike, Codable {
     }
   }
 
+  func serialize(file: inout FileHandle) {
+    defer { file.closeFile() }
+
+    withUnsafePointer(to: &file) { (filePtr) in
+      var context = cmp_ctx_t()
+      let rawFilePtr = UnsafeMutableRawPointer(mutating: filePtr)
+      cmp_init(&context, rawFilePtr, cmpFileReader, cmpFileSkipper, cmpFileWriter)
+
+      let _ = content.compress()!.withUnsafeBytes( { contentPtr in
+        cmp_write_bin(&context, UnsafeRawPointer(contentPtr), UInt32(content.count))        
+      })
+    }
+
+    file.closeFile()
+  }
+
   enum CodingKeys : CodingKey {
     case content
+  }
+}
+
+extension Blob : Serializable {
+  func serialize(encoder: CMPEncoder) -> Data {
+    encoder.write(content)
+    return encoder.buffer
+  }
+  static func deserialize(with decoder: CMPDecoder) -> Blob {
+    let content: Data = decoder.read()
+    return Blob(content: content)
+  }
+  init(with decoder: CMPDecoder) throws {
+    content = decoder.read()
   }
 }

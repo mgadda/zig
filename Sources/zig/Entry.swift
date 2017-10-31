@@ -43,3 +43,21 @@ struct Entry : Codable, Hashable {
     try container.encode(name, forKey: .name)
   }
 }
+
+extension Entry : Serializable {
+  func serialize(encoder: CMPEncoder) -> Data {
+    encoder.write(permissions)
+    encoder.write(objectId)
+    encoder.write(objectType)
+    encoder.write(name)
+    return encoder.buffer
+  }
+
+  static func deserialize(with decoder: CMPDecoder) -> Entry {
+    let permissions: Int = decoder.read()
+    let objectId: Data = decoder.read()
+    let objectType: String = decoder.read()
+    let name: String = decoder.read()
+    return Entry(permissions: permissions, objectId: objectId, objectType: objectType, name: name)
+  }
+}

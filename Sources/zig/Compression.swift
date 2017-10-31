@@ -36,7 +36,7 @@ extension Data {
         switch result {
         case COMPRESSION_STATUS_OK:
           guard stream.dst_size == 0 else {
-            continue
+            continue // TODO(mgadda): should be return nil, otherwise loops indefinitely when trying to decompress not compressed data
           }
           output.append(stream.dst_ptr, count: stream.dst_size)
           stream.dst_ptr = buffer

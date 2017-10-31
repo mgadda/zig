@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CMP
 
 struct Author : Codable {
   let name: String
@@ -80,5 +81,36 @@ extension Commit : Codable {
 
   enum CodingKeys : CodingKey {
     case parentId, author, createdAt, treeId, message
+  }
+}
+
+
+extension Commit : Serializable {
+  func serialize(encoder: CMPEncoder) -> Data {
+    // TODO: support keyed containers so we don't have to encode empty field
+    encoder.write(parentId ?? Data())
+    encoder.write(author.name)
+    encoder.write(author.email)
+    encoder.write(Int(createdAt.timeIntervalSince1970))
+    encoder.write(treeId)
+    encoder.write(message)
+
+    return encoder.buffer
+  }
+
+  static func deserialize(with decoder: CMPDecoder) -> Commit {
+    var parentId: Data? = decoder.read()
+    let authorName: String = decoder.read()
+    let authorEmail: String = decoder.read()
+    let createdAtInterval: Int = decoder.read()
+    let createdAt: Date = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
+    let treeId: Data = decoder.read()
+    let message: String = decoder.read()
+
+    if parentId?.count == 0 {
+      parentId = nil
+    }
+    let author = Author(name: authorName, email: authorEmail)
+    return Commit(parentId: parentId, author: author, createdAt: createdAt, treeId: treeId, message: message)
   }
 }
