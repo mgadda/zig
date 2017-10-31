@@ -119,7 +119,7 @@ class Repository {
     return loadObjectData(id: id).flatMap {
 //      try? decoder.decode(type, from: $0)
       let decoder = CMPDecoder(from: $0)
-      return T.deserialize(with: decoder)
+      return try? T(with: decoder)
     }
   }
 

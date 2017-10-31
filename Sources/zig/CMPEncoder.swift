@@ -203,19 +203,19 @@ class CMPDecoder {
     return String(data: value, encoding: .utf8)!
   }
 
-  func read<T : Serializable>() -> [T] {
+  func read<T : Serializable>() throws -> [T] {
     var size: UInt32 = 0
     cmp_read_array(&context, &size)
-    return Array((0..<size)).map { (_) -> T in
-      T.deserialize(with: self)
+    return try Array((0..<size)).map { (_) -> T in
+      try T(with: self)
     }
   }
 
-  func read<T : Serializable, U : Serializable>() -> [T : U] {
+  func read<T : Serializable, U : Serializable>() throws -> [T : U] {
     var size: UInt32 = 0
     cmp_read_map(&context, &size)
-    let keysAndValues = Array((0..<size)).flatMap { (_) -> (T, U) in
-      (T.deserialize(with: self), U.deserialize(with: self))
+    let keysAndValues = try Array((0..<size)).flatMap { (_) -> (T, U) in
+      (try T(with: self), try U(with: self))
     }
     return Dictionary<T, U>(uniqueKeysWithValues: keysAndValues)
   }

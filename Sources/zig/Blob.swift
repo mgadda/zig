@@ -57,10 +57,7 @@ extension Blob : Serializable {
     encoder.write(content)
     return encoder.buffer
   }
-  static func deserialize(with decoder: CMPDecoder) -> Blob {
-    let content: Data = decoder.read()
-    return Blob(content: content)
-  }
+  
   init(with decoder: CMPDecoder) throws {
     content = decoder.read()
   }

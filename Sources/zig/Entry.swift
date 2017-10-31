@@ -53,11 +53,10 @@ extension Entry : Serializable {
     return encoder.buffer
   }
 
-  static func deserialize(with decoder: CMPDecoder) -> Entry {
-    let permissions: Int = decoder.read()
-    let objectId: Data = decoder.read()
-    let objectType: String = decoder.read()
-    let name: String = decoder.read()
-    return Entry(permissions: permissions, objectId: objectId, objectType: objectType, name: name)
+  init(with decoder: CMPDecoder) throws {
+    permissions = decoder.read()
+    objectId = decoder.read()
+    objectType = decoder.read()
+    name = decoder.read()
   }
 }

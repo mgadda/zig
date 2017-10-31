@@ -47,7 +47,7 @@ extension Tree : Serializable {
     return encoder.buffer
   }
 
-  static func deserialize(with decoder: CMPDecoder) -> Tree {
-    return Tree(entries: decoder.read())
+  init(with decoder: CMPDecoder) throws {
+    entries = try decoder.read()
   }
 }

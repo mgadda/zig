@@ -98,19 +98,20 @@ extension Commit : Serializable {
     return encoder.buffer
   }
 
-  static func deserialize(with decoder: CMPDecoder) -> Commit {
-    var parentId: Data? = decoder.read()
+  init(with decoder: CMPDecoder) throws {
+    let maybeParentId: Data = decoder.read()
     let authorName: String = decoder.read()
     let authorEmail: String = decoder.read()
+    author = Author(name: authorName, email: authorEmail)
     let createdAtInterval: Int = decoder.read()
-    let createdAt: Date = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
-    let treeId: Data = decoder.read()
-    let message: String = decoder.read()
+    createdAt = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
+    treeId = decoder.read()
+    message = decoder.read()
 
-    if parentId?.count == 0 {
+    if maybeParentId.count == 0 {
       parentId = nil
+    } else {
+      parentId = maybeParentId
     }
-    let author = Author(name: authorName, email: authorEmail)
-    return Commit(parentId: parentId, author: author, createdAt: createdAt, treeId: treeId, message: message)
   }
 }
