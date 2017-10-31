@@ -139,11 +139,7 @@ class Repository {
     return object
   }
 
-  func snapshot() -> ObjectLike {
-    // TODO: CTRL+C to bail out
-    print("Snapshot message (press ENTER when finished): ", terminator: "")
-    let msg = readLine()!
-
+  func snapshot(message: String) -> ObjectLike {
     let topLevelTree = _snapshot(startingAt: rootUrl)
 
     let headContents = getHEADContents()
@@ -154,7 +150,7 @@ class Repository {
       author: Author(name: "Matt Gadda", email: "<mgadda@gmail.com>"), // TODO: move to .zig/config
       createdAt: Date(),
       treeId: topLevelTree.id,
-      message: msg)
+      message: message)
 
     writeObject(object: commit)
 

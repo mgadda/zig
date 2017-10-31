@@ -131,12 +131,23 @@ case let (2...3, "cat", args):
     print("Unknown object")
   }
 
+case let (2, "snapshot", args):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+
+  let _ = repo.snapshot(message: args[0])
+
 case (1, "snapshot", _):
   guard let repo = Repository() else {
     exit(1)
   }
 
-  let _ = repo.snapshot()
+  // TODO: CTRL+C to bail out
+  print("Snapshot message (press ENTER when finished): ", terminator: "")
+  let message = readLine()!
+
+  let _ = repo.snapshot(message: message)
 
 case (1, "log", _):
   guard let repo = Repository() else {
