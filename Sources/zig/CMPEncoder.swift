@@ -209,7 +209,7 @@ class CMPDecoder {
       throw ZigError.decodingError("Error code \(context.error)")
     }
 
-    return String(data: value, encoding: .utf8)!
+    return String(data: value.subdata(in: 0..<(value.count - 1)), encoding: .utf8)!
   }
 
   func read<T : Serializable>() throws -> [T] {
