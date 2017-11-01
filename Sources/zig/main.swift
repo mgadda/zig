@@ -17,9 +17,9 @@ func printHelp() {
 
 let fileman = FileManager.default
 
-let realArgCount = CommandLine.argc - 1
+let realArgCount = CommandLine.argc - 2
 
-if realArgCount < 1 {
+if realArgCount < 0 {
   printHelp()
 }
 
@@ -29,13 +29,22 @@ enum OutputFormat {
 }
 
 switch (realArgCount, CommandLine.arguments[1], Array(CommandLine.arguments.dropFirst(2))) {
+case (_, "writedummy", _):
+  exit(1)
+//  let blob = Blob(content: "Hello, world!\n".data(using: .utf8)!)
+//
+//  let url = URL(fileURLWithPath: "/tmp/\(blob.id.base16EncodedString())")
+//  FileManager.default.createFile(atPath: url.path, contents: nil, attributes: nil)
+//  var file = try! FileHandle(forWritingTo: url)
+//  blob.serialize(file: &file)
+//  exit(0)
 
-case (1, "init", _):
+case (0, "init", _):
   guard let _ = Repository.initRepo() else {
     exit(1)
   }
 
-case let (2...3, "hash", args):
+case let (1...2, "hash", args):
   guard let repo = Repository() else {
     exit(1)
   }
@@ -60,7 +69,7 @@ case let (2...3, "hash", args):
     print(String(data: try! JSONEncoder().encode(objectForEncoding), encoding: .utf8)!)
   }
 
-case let(2, "rawcat", args):
+case let(1, "rawcat", args):
   guard let repo = Repository() else {
     exit(1)
   }
@@ -78,11 +87,13 @@ case let (2...3, "cat", args):
   var outputFormat: OutputFormat = .human(verbose: true)
 
   let id: String
-  if args.count >= 1 && args[0] == "--json" {
+  let type: String = args[0]
+
+  if args.count >= 2 && args[1] == "--json" {
     outputFormat = .json
-    id = args[1]
+    id = args[2]
   } else {
-    id = args[0]
+    id = args[1]
   }
 
   guard let ref = repo.resolve(ref: id),
@@ -90,14 +101,14 @@ case let (2...3, "cat", args):
     fatalError("Not a valid ref")
   }
 
-
   let encoder = JSONEncoder()
+
   // TODO: define date and data encoding strategies here
 
   // This is kind gross: Attempt to read this object as
   // each of the known types until we get back .some(thing)
   // TODO: fix this
-  if let blob = repo.readObject(id: objectId.base16DecodedData(), type: Blob.self) {
+  if type == "blob", let blob = repo.readObject(id: objectId.base16DecodedData(), type: Blob.self) {
 
     switch outputFormat {
     case let .human(verbose):
@@ -107,7 +118,7 @@ case let (2...3, "cat", args):
       print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
     }
 
-  } else if let tree = repo.readObject(id: objectId.base16DecodedData(), type: Tree.self) {
+  } else if type == "tree", let tree = repo.readObject(id: objectId.base16DecodedData(), type: Tree.self) {
 
     switch outputFormat {
     case let .human(verbose):
@@ -117,7 +128,7 @@ case let (2...3, "cat", args):
       print(String(data: try! encoder.encode(objectForEncoding), encoding: .utf8)!)
     }
 
-  } else if let commit = repo.readObject(id: objectId.base16DecodedData(), type: Commit.self) {
+  } else if type == "commit", let commit = repo.readObject(id: objectId.base16DecodedData(), type: Commit.self) {
 
     switch outputFormat {
     case let .human(verbose):
@@ -131,14 +142,14 @@ case let (2...3, "cat", args):
     print("Unknown object")
   }
 
-case let (2, "snapshot", args):
+case let (1, "snapshot", args):
   guard let repo = Repository() else {
     exit(1)
   }
 
   let _ = repo.snapshot(message: args[0])
 
-case (1, "snapshot", _):
+case (0, "snapshot", _):
   guard let repo = Repository() else {
     exit(1)
   }
@@ -149,7 +160,8 @@ case (1, "snapshot", _):
 
   let _ = repo.snapshot(message: message)
 
-case (1, "log", _):
+// TODO: allow ref arg
+case (0, "log", _):
   guard let repo = Repository() else {
     exit(1)
   }
@@ -167,7 +179,7 @@ case (1, "log", _):
   less.launch()
   pipe.fileHandleForWriting.closeFile()
 
-case let (2, "resolve", args):
+case let (1, "resolve", args):
   guard let repo = Repository() else {
     exit(1)
   }
@@ -178,7 +190,7 @@ case let (2, "resolve", args):
 
   print(resolved.description())
 
-case let(2, "checkout", args):
+case let(1, "checkout", args):
   guard let repo = Repository() else {
     exit(1)
   }
@@ -200,7 +212,7 @@ case let(_, "tag", args):
 
   repo.createTag(name, ref: tagArgs.first.map { .unknown($0) } )
 
-case (1, "branch", _):
+case (0, "branch", _):
   guard let repo = Repository() else {
     exit(1)
   }
