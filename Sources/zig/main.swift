@@ -232,9 +232,20 @@ case let(_, "branch", args):
 
   repo.createBranch(name, ref: branchArgs.first.map { .unknown($0) } )
 
-//  repo.branch()
+case let (_, cmdName, args):
+  let scriptName = "zig-\(cmdName)"
+  let which = Process()
+  which.launchPath = "/usr/bin/env"
+  which.arguments = ["which", "-s", scriptName]
+  which.launch()
+  which.waitUntilExit()
+  if which.terminationStatus == 0 {
+    let script = Process()
+    script.launchPath = "/usr/bin/env"
+    script.arguments = [scriptName] + args
 
-default:
-  printHelp()
-  break
+    script.launch()
+  } else {
+    printHelp()
+  }
 }
