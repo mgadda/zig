@@ -148,6 +148,7 @@ case let (1, "snapshot", args):
   }
 
   let _ = repo.snapshot(message: args[0])
+  print("Wrote \(repo.objectWriteCount) new object(s).")
 
 case (0, "snapshot", _):
   guard let repo = Repository() else {
@@ -159,6 +160,7 @@ case (0, "snapshot", _):
   let message = readLine()!
 
   let _ = repo.snapshot(message: message)
+  print("Wrote \(repo.objectWriteCount) new object(s).")
 
 // TODO: allow ref arg
 case (0, "log", _):

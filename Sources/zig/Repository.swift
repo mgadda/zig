@@ -65,6 +65,8 @@ class Repository {
     }
   }
 
+  var objectWriteCount = 0
+
   func writeObject(object: ObjectLike) {
     let (objIdPrefix, filename) = splitId(id: object.id)
 
@@ -76,6 +78,9 @@ class Repository {
     )
 
     let fileURL = prefixedObjDir.appendingPathComponent(filename)
+
+    guard !Repository.fileman.fileExists(atPath: fileURL.path) else { return }
+
 //    let encoder = MessagePackEncoder()
 //    let data: Data?
 //    switch object {
@@ -96,6 +101,7 @@ class Repository {
     let encoder = CMPEncoder()
     object.serialize(encoder: encoder)
     if let compressedData = encoder.buffer.compress() {
+      objectWriteCount += 1
       Repository.fileman.createFile(atPath: fileURL.path, contents: compressedData, attributes: nil)
     } else {
       fatalError("BUG: Failed to write object due to encoding or compression issue")
