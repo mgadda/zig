@@ -1,16 +1,16 @@
-* zig checkout <commit>
 * Support JSON output for all commands
 * Support .zig/config - author
 * zig diff (working tree against commit or HEAD)
-* .zignore
-* branches
-* tags
-* unit tests
+ unit tests
 * better cli output (including --help)
-* -m flag for snapshot message
 
+* DONE .zignore
 * DONE resolve (rev-parse)
 * DONE convert to swift pm project
 * DONE Refactor commit into its own class
 * DONE CommitView / TreeishIterator should return Commits, not Treeish
-* DONE use msgpack for storage form 
+* DONE use msgpack for storage form
+* DONE branches
+* DONE tags
+* DONE -m flag for snapshot message
+* DONE zig checkout <commit>
