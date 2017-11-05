@@ -382,7 +382,7 @@ class Repository {
       return nil
     }
 
-    var refComponents = ref.characters.split(
+    var refComponents = ref.split(
       separator: "/",
       maxSplits: 2,
       omittingEmptySubsequences: true
@@ -420,7 +420,7 @@ class Repository {
 
   // Attempt to expand a partial id into a full id
   private func expandPartialId(_ id: String) -> String? {
-    let (prefix, partialSuffix) = (String(id.characters.prefix(2)), String(id.characters.dropFirst(2)))
+    let (prefix, partialSuffix) = (String(id.prefix(2)), String(id.dropFirst(2)))
     let prefixedUrl = objectDir.appendingPathComponent(prefix, isDirectory: true)
 
     let objectUrls = try! Repository.fileman.contentsOfDirectory(
@@ -476,11 +476,11 @@ class Repository {
       return resolveBranchOrTag(name, path: "tags").flatMap { resolve($0) }
 
     case let .commit(id):
-      guard id.characters.count >= 6 else {
+      guard id.count >= 6 else {
         return nil
       }
 
-      if id.characters.count == 40 {
+      if id.count == 40 {
         return ref
       } else {
         return expandPartialId(id).map { .commit($0) }        

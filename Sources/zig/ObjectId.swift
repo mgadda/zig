@@ -17,7 +17,7 @@ extension Data {
 extension String {
   func base16DecodedData() -> Data {
     var data = Data()
-    let chs = Array(characters)
+    let chs = Array(self)
     let ints = stride(from: 0, to: chs.count, by: 2).map { idx in
       UInt8("\(chs[idx])\(chs[idx+1])", radix: 16)!
     }
@@ -44,7 +44,7 @@ struct ObjectId {
 
   static func fromHexString(str: String) -> ObjectId? {
     var newData = Data()
-    let chs = Array(str.characters)
+    let chs = Array(str)
     let ints = stride(from: 0, to: chs.count, by: 2).map { idx in
       UInt8("\(chs[idx])\(chs[idx+1])", radix: 16)
     }
