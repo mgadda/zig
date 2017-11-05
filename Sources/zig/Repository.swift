@@ -22,7 +22,7 @@ class Repository {
 
   init?() {
     if let url = Repository.findRepositoryRoot() {
-      rootUrl = url
+      rootUrl = url.standardizedFileURL
       let zigUrl = rootUrl.appendingPathComponent(".zig", isDirectory: true)
 
       HEADUrl = zigUrl.appendingPathComponent("HEAD", isDirectory: false)
@@ -204,11 +204,23 @@ class Repository {
   }
 
   private func _snapshot(startingAt dir: URL) -> ObjectLike {
-    let urls = try! Repository.fileman.contentsOfDirectory(at: dir, includingPropertiesForKeys: [], options: FileManager.DirectoryEnumerationOptions.skipsHiddenFiles)
+    let urls = try! Repository.fileman.contentsOfDirectory(at: dir, includingPropertiesForKeys: [], options: FileManager.DirectoryEnumerationOptions.skipsSubdirectoryDescendants).map { $0.standardizedFileURL } // removes "private" from /tmp urls
 
-    let entries = urls.map { (url: URL) -> Entry in
+    // return (url does not match zignore) and != rootUrl
+    let zignoreUrl = dir.appendingPathComponent(".zignore")
+    let ignoredPaths: [URL]
+    if let ignoredGlobs = try? String(data: Data(contentsOf: zignoreUrl), encoding: .utf8)!.split(separator: "\n", omittingEmptySubsequences: true) {
+      ignoredPaths = glob(patterns: ignoredGlobs.map { String($0) }, relativeTo: dir)
+    } else {
+      ignoredPaths = []
+    }
+
+    let zigUrl = rootUrl.appendingPathComponent(".zig", isDirectory: true)
+    let validUrls = Set(urls).subtracting(Set(ignoredPaths).union([zignoreUrl, zigUrl]))
+
+    let entries = validUrls.map { (url: URL) -> Entry in
       let attributes = try! FileManager.default.attributesOfItem(atPath: url.path)
-      let perms = attributes[FileAttributeKey.posixPermissions] as? Int ?? 0 // TODO: 0 is probably not correct
+      let perms = attributes[FileAttributeKey.posixPermissions] as? Int ?? 0 // TODO: pick sensible default
 
       let object: ObjectLike
       if url.hasDirectoryPath {
@@ -370,7 +382,7 @@ class Repository {
       return nil
     }
 
-    var refComponents = ref.characters.split(
+    var refComponents = ref.split(
       separator: "/",
       maxSplits: 2,
       omittingEmptySubsequences: true
@@ -408,7 +420,7 @@ class Repository {
 
   // Attempt to expand a partial id into a full id
   private func expandPartialId(_ id: String) -> String? {
-    let (prefix, partialSuffix) = (String(id.characters.prefix(2)), String(id.characters.dropFirst(2)))
+    let (prefix, partialSuffix) = (String(id.prefix(2)), String(id.dropFirst(2)))
     let prefixedUrl = objectDir.appendingPathComponent(prefix, isDirectory: true)
 
     let objectUrls = try! Repository.fileman.contentsOfDirectory(
@@ -464,11 +476,11 @@ class Repository {
       return resolveBranchOrTag(name, path: "tags").flatMap { resolve($0) }
 
     case let .commit(id):
-      guard id.characters.count >= 6 else {
+      guard id.count >= 6 else {
         return nil
       }
 
-      if id.characters.count == 40 {
+      if id.count == 40 {
         return ref
       } else {
         return expandPartialId(id).map { .commit($0) }        
