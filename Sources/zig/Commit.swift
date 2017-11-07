@@ -11,6 +11,7 @@ import CMP
 struct Author : Codable {
   let name: String
   let email: String
+  let gpgKey: String?
 }
 
 struct Commit : ObjectLike {
@@ -51,7 +52,7 @@ struct Commit : ObjectLike {
       out += "Tree: \(treeId.base16EncodedString())"
       out += "\nParent: " + (parentId?.base16EncodedString() ?? "(no parent)") + "\n"
     }
-    out += "Author: \(author.name) \(author.email)\n"
+    out += "Author: \(author.name) <\(author.email)>\n"
     out += "Date: " + createdAt.debugDescription + "\n\n"
     out += "  " + message + "\n"
     return out
@@ -87,25 +88,63 @@ extension Commit : Codable {
 
 extension Commit : Serializable {
   func serialize(encoder: CMPEncoder) {
-    // TODO: support keyed containers so we don't have to encode empty field
 //    encoder.write("commit")
+    // TODO: support keyed containers so we don't have to encode empty field
     encoder.write(parentId ?? Data())
     encoder.write(author.name)
     encoder.write(author.email)
+    encoder.write(author.gpgKey ?? "")
     encoder.write(Int(createdAt.timeIntervalSince1970))
     encoder.write(treeId)
-    encoder.write(message)    
+    encoder.write(message)
+
+    let commitDataUrl = URL(fileURLWithPath: "/tmp/commit.dat")
+    try! encoder.buffer.write(to: commitDataUrl)
+
+    let gpg = Process()
+    gpg.launchPath = "/usr/bin/env"
+    var arguments = ["gpg"]
+    if let gpgKey = author.gpgKey {
+      arguments += ["--default-key", gpgKey]
+    }
+    arguments += ["--output", "/tmp/commit.sig", "--detach-sign", "/tmp/commit"]
+    gpg.launch()
+    gpg.waitUntilExit()
+
+    let signature = try! Data(contentsOf: URL(fileURLWithPath: "/tmp/commit.sig"))
+    encoder.write(signature)
+
+    try! FileManager.default.removeItem(at: commitDataUrl)
   }
 
   init(with decoder: CMPDecoder) throws {
-    let maybeParentId: Data = decoder.read()
-    let authorName: String = try decoder.read()
-    let authorEmail: String = try decoder.read()
-    author = Author(name: authorName, email: authorEmail)
-    let createdAtInterval: Int = decoder.read()
+    let signedCommitData: Data = decoder.read()
+
+    let commitSigUrl = URL(fileURLWithPath: "/tmp/commit.sig")
+    try! decoder.buffer.write(to: commitSigUrl)
+
+    let gpg = Process()
+    gpg.launchPath = "/usr/bin/env"
+    gpg.arguments = ["gpg", "--verify", "/tmp/commit.sig"]
+
+
+    let pipe = Pipe()
+    gpg.standardOutput = pipe
+
+    gpg.launch()
+    gpg.waitUntilExit()
+
+    let gpgData = pipe.fileHandleForReading.readDataToEndOfFile()
+
+    try! FileManager.default.removeItem(at: commitSigUrl)
+
+    let gpgDecoder = CMPDecoder(from: signedCommitData)
+
+    let maybeParentId: Data = gpgDecoder.read()
+    let createdAtInterval: Int = gpgDecoder.read()
     createdAt = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
-    treeId = decoder.read()
-    message = try decoder.read()
+    treeId = gpgDecoder.read()
+    message = try gpgDecoder.read()
 
     if maybeParentId.count == 0 {
       parentId = nil
