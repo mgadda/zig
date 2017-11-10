@@ -1,8 +1,25 @@
+* handle deserialization errors of config.json more gracefully
+* move urls into Config
+* define default values for as much of Config as possible should no config be present, error if things that have no reasonable default can not be ascertained
+* search up through tree to find global .zigconfig.json
+* sign hash of objects, not objects
+* integrate pgp library so to avoid shelling out
+* define init story better wrt gpg
+  * is there a non-secure mode?
+  * upgrade/down to/from secure repo
+  * can we automate key creation? should we?
+
+* separate targets/binaries for each zig command
+  * bash/binary commands should be on equal standing
+
 * Support JSON output for all commands
 * Support .zig/config - author
 * zig diff (working tree against commit or HEAD)
- unit tests
+* unit tests
+* zig status
 * better cli output (including --help)
+* explore peer-to-peer automatic sync'ing of repositories (no central repo required)
+* explore blockchain tech as it applies to zig
 
 * DONE .zignore
 * DONE resolve (rev-parse)

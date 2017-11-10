@@ -17,23 +17,38 @@ class Repository {
   let refsUrl: URL // .zig/refs
   let branchHeadsUrl: URL // .zig/refs/heads
   let tagsUrl: URL // .zig/refs/tags
+  let config: Config?
+  let gpg: Gpg
 
   private static let fileman = FileManager.default
 
   init?() {
-    if let url = Repository.findRepositoryRoot() {
-      rootUrl = url.standardizedFileURL
-      let zigUrl = rootUrl.appendingPathComponent(".zig", isDirectory: true)
-
-      HEADUrl = zigUrl.appendingPathComponent("HEAD", isDirectory: false)
-      objectDir = zigUrl.appendingPathComponent("objects", isDirectory: true)
-      refsUrl = zigUrl.appendingPathComponent("refs", isDirectory: true)
-      branchHeadsUrl = refsUrl.appendingPathComponent("heads", isDirectory: true)
-      tagsUrl = refsUrl.appendingPathComponent("tags", isDirectory: true)
-
-    } else {
+    guard let url = Repository.findRepositoryRoot() else {
       print("Not a valid zig repository")
       return nil
+    }
+
+    rootUrl = url.standardizedFileURL
+    let zigUrl = rootUrl.appendingPathComponent(".zig", isDirectory: true)
+
+    HEADUrl = zigUrl.appendingPathComponent("HEAD", isDirectory: false)
+    objectDir = zigUrl.appendingPathComponent("objects", isDirectory: true)
+    refsUrl = zigUrl.appendingPathComponent("refs", isDirectory: true)
+    branchHeadsUrl = refsUrl.appendingPathComponent("heads", isDirectory: true)
+    tagsUrl = refsUrl.appendingPathComponent("tags", isDirectory: true)
+
+    let configUrl = zigUrl.appendingPathComponent("config.json")
+    if let configData = try? Data(contentsOf: configUrl) {
+      let decoder = JSONDecoder()
+      config = try! decoder.decode(Config.self, from: configData)
+      if config!.gpg.homedir == nil {
+        gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
+      } else {
+        gpg = Gpg(homedir: config!.gpg.homedir?.standardized)
+      }
+    } else {
+      config = nil
+      gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
     }
   }
 
@@ -151,9 +166,13 @@ class Repository {
     let headContents = getHEADContents()
     let parentId: Data? = resolve(.head)?.commit?.base16DecodedData()
 
+    guard let author = config?.author else {
+      fatalError("No author specified")
+    }
+    
     let commit = Commit(
       parentId: parentId,
-      author: Author(name: "Matt Gadda", email: "<mgadda@gmail.com>"), // TODO: move to .zig/config
+      author: author,
       createdAt: Date(),
       treeId: topLevelTree.id,
       message: message)
@@ -493,7 +512,7 @@ class Repository {
   }
 
   // TODO: this entire method could be much more easily
-  // implemented in bash
+  // implemented in bash (see scripts/zig-init)
   class func initRepo() -> Repository? {
     let cwdUrl = URL(fileURLWithPath: fileman.currentDirectoryPath)
     let zigDir = cwdUrl.appendingPathComponent(".zig")

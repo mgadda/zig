@@ -98,58 +98,43 @@ extension Commit : Serializable {
     encoder.write(treeId)
     encoder.write(message)
 
-    let commitDataUrl = URL(fileURLWithPath: "/tmp/commit.dat")
-    try! encoder.buffer.write(to: commitDataUrl)
-
-    let gpg = Process()
-    gpg.launchPath = "/usr/bin/env"
-    var arguments = ["gpg"]
-    if let gpgKey = author.gpgKey {
-      arguments += ["--default-key", gpgKey]
+    if let repo = (encoder.userContext as? Repository),
+      let data = try? repo.gpg.sign(data: self.id, keyName: repo.config?.author.gpgKey) {
+      encoder.write(data)
     }
-    arguments += ["--output", "/tmp/commit.sig", "--detach-sign", "/tmp/commit"]
-    gpg.launch()
-    gpg.waitUntilExit()
-
-    let signature = try! Data(contentsOf: URL(fileURLWithPath: "/tmp/commit.sig"))
-    encoder.write(signature)
-
-    try! FileManager.default.removeItem(at: commitDataUrl)
   }
 
   init(with decoder: CMPDecoder) throws {
-    let signedCommitData: Data = decoder.read()
+    let maybeParentId: Data = decoder.read()
+    let authorName: String = try decoder.read()
+    let authorEmail: String = try decoder.read()
+    let authorGpg: String = try decoder.read()
+    let maybeAuthorGpg: String?
+    if authorGpg.isEmpty {
+      maybeAuthorGpg = authorGpg
+    } else {
+      maybeAuthorGpg = nil
+    }
 
-    let commitSigUrl = URL(fileURLWithPath: "/tmp/commit.sig")
-    try! decoder.buffer.write(to: commitSigUrl)
-
-    let gpg = Process()
-    gpg.launchPath = "/usr/bin/env"
-    gpg.arguments = ["gpg", "--verify", "/tmp/commit.sig"]
-
-
-    let pipe = Pipe()
-    gpg.standardOutput = pipe
-
-    gpg.launch()
-    gpg.waitUntilExit()
-
-    let gpgData = pipe.fileHandleForReading.readDataToEndOfFile()
-
-    try! FileManager.default.removeItem(at: commitSigUrl)
-
-    let gpgDecoder = CMPDecoder(from: signedCommitData)
-
-    let maybeParentId: Data = gpgDecoder.read()
-    let createdAtInterval: Int = gpgDecoder.read()
+    author = Author(name: authorName, email: authorEmail, gpgKey: maybeAuthorGpg)
+    let createdAtInterval: Int = decoder.read()
     createdAt = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
-    treeId = gpgDecoder.read()
-    message = try gpgDecoder.read()
+    treeId = decoder.read()
+    message = try decoder.read()
 
     if maybeParentId.count == 0 {
       parentId = nil
     } else {
       parentId = maybeParentId
     }
+
+    let signature: Data = decoder.read()
+
+    if let repo = decoder.userContext as? Repository {
+      if !(try repo.gpg.verify(data: id, signature: signature)) {
+        throw ZigError.decodingError("WARNING: Object with id \(id) may have been tampered with")
+      }
+    }
+
   }
 }

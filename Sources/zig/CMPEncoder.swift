@@ -53,10 +53,13 @@ class CMPEncoder {
   var context = cmp_ctx_t()
   var buffer = Data()
 
+  let userContext: Any?
+
   var bufferPosition = 0 // used for reading/skipping
   fileprivate var jump: CMPJump
 
-  init() {
+  init(userContext: Any? = nil) {
+    self.userContext = userContext
     jump = CMPJump()
     jump.encoder = self
     // `this` is guaranteed to be as valid as long as `self`
@@ -137,12 +140,14 @@ class CMPDecoder {
   //  let context: UnsafeMutablePointer<cmp_ctx_t>
   var context = cmp_ctx_t()
   var buffer: Data
+  let userContext: Any?
 
   var bufferPosition = 0 // used for reading/skipping
   fileprivate var jump: CMPJump
 
-  init(from buffer: Data) {
+  init(from buffer: Data, userContext: Any? = nil) {
     self.buffer = buffer
+    self.userContext = userContext
 
     jump = CMPJump()
     jump.decoder = self
