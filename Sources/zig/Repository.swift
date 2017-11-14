@@ -10,6 +10,22 @@ import Foundation
 import MessagePackEncoder
 import Compression
 
+func findAscending(at url: URL, filename: String) -> [URL] {
+  func _findAscending(url: URL, found: [URL]) -> [URL] {
+    if url.path == "/" {
+      return found
+    } else {
+      let urlWithFilename = url.appendingPathComponent(filename)
+      if FileManager.default.fileExists(atPath: urlWithFilename.path) {
+        return _findAscending(url: url.appendingPathComponent("..").standardized, found: found + [urlWithFilename])
+      } else {
+        return _findAscending(url: url.appendingPathComponent("..").standardized, found: found)
+      }
+    }
+  }
+  return _findAscending(url: url, found: [])
+}
+
 class Repository {
   let rootUrl: URL // working tree
   let HEADUrl: URL // .zig/HEAD
@@ -17,7 +33,7 @@ class Repository {
   let refsUrl: URL // .zig/refs
   let branchHeadsUrl: URL // .zig/refs/heads
   let tagsUrl: URL // .zig/refs/tags
-  let config: Config?
+  let config: Config
   let gpg: Gpg
 
   private static let fileman = FileManager.default
@@ -37,19 +53,86 @@ class Repository {
     branchHeadsUrl = refsUrl.appendingPathComponent("heads", isDirectory: true)
     tagsUrl = refsUrl.appendingPathComponent("tags", isDirectory: true)
 
-    let configUrl = zigUrl.appendingPathComponent("config.json")
-    if let configData = try? Data(contentsOf: configUrl) {
-      let decoder = JSONDecoder()
-      config = try! decoder.decode(Config.self, from: configData)
-      if config!.gpg.homedir == nil {
-        gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
-      } else {
-        gpg = Gpg(homedir: config!.gpg.homedir?.standardized)
-      }
-    } else {
-      config = nil
-      gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
+    let repoConfigUrl = zigUrl.appendingPathComponent("config")
+
+    guard Repository.fileman.fileExists(atPath: repoConfigUrl.path) else {
+      print("Missing .zig/config")
+      return nil
     }
+
+    let configUrls: [URL] = ([repoConfigUrl] + Repository.findConfigs(at: rootUrl)).reversed()
+
+    do {
+      config = try Repository.loadMergedConfigs(at: configUrls)
+    } catch {
+      print(error)
+      return nil
+    }
+
+    if config.gpg?.homedir == nil {
+      gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
+    } else {
+      gpg = Gpg(homedir: config.gpg?.homedir?.standardized)
+    }
+
+// TODO: delete me
+//    if let configData = try? Data(contentsOf: configUrl) {
+//      let decoder = JSONDecoder()
+//      config = try! decoder.decode(Config.self, from: configData)
+//      if config!.gpg?.homedir == nil {
+//        gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
+//      } else {
+//        gpg = Gpg(homedir: config!.gpg?.homedir?.standardized)
+//      }
+//    } else {
+//      config = nil
+//      gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
+//    }
+  }
+
+  /// Find all configs from path up to root
+  static func findConfigs(at url: URL) -> [URL] {
+    return findAscending(at: url, filename: ".zigconfig")
+  }
+
+  /// Assumes paths represent json formated files. The files will be merged
+  /// and then decoded into a Config.
+  /// Currently requires jq 1.4 or higher to be in path
+  static func loadMergedConfigs(at paths: [URL]) throws -> Config {
+    // cat file1 file2 fileN | jq '.[0]*.[1]*.[N]' | self
+
+    let cat = Process()
+    cat.launchPath = "/usr/bin/env"
+    cat.arguments = ["cat"] + paths.map { $0.path }
+
+    let jq = Process()
+    jq.launchPath = "/usr/bin/env"
+    let mergeQuery: String = paths
+      .enumerated()
+      .map { (index, _) in ".[\(index)]" }
+      .joined(separator: "*")
+
+    jq.arguments = ["jq", "-c", "-e", "--slurp", mergeQuery]
+    jq.environment = ProcessInfo.processInfo.environment
+
+    let catToJq = Pipe()
+    let jqToZig = Pipe()
+    cat.standardOutput = catToJq
+    jq.standardInput = catToJq
+    jq.standardOutput = jqToZig
+
+    cat.launch()
+    jq.launch()
+    jq.waitUntilExit()
+
+    guard jq.terminationStatus == 0 else {
+      throw ZigError.decodingError("Could not merge configs. Perhaps one of them contained invalid JSON.")
+    }
+
+    let mergedConfigData = jqToZig.fileHandleForReading.readDataToEndOfFile()
+
+    let decoder = JSONDecoder()
+    return try decoder.decode(Config.self, from: mergedConfigData)
   }
 
   var commits: CommitView {
@@ -113,7 +196,7 @@ class Repository {
 //      break
 //    }
 
-    let encoder = CMPEncoder()
+    let encoder = CMPEncoder(userContext: self)
     object.serialize(encoder: encoder)
     if let compressedData = encoder.buffer.compress() {
       objectWriteCount += 1
@@ -139,7 +222,7 @@ class Repository {
 //    let decoder = MessagePackDecoder()
     return loadObjectData(id: id).flatMap {
 //      try? decoder.decode(type, from: $0)
-      let decoder = CMPDecoder(from: $0)      
+      let decoder = CMPDecoder(from: $0, userContext: self)
       return try? T(with: decoder)
     }
   }
@@ -166,13 +249,9 @@ class Repository {
     let headContents = getHEADContents()
     let parentId: Data? = resolve(.head)?.commit?.base16DecodedData()
 
-    guard let author = config?.author else {
-      fatalError("No author specified")
-    }
-    
     let commit = Commit(
       parentId: parentId,
-      author: author,
+      author: config.author,
       createdAt: Date(),
       treeId: topLevelTree.id,
       message: message)

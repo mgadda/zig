@@ -11,7 +11,6 @@ import CMP
 struct Author : Codable {
   let name: String
   let email: String
-  let gpgKey: String?
 }
 
 struct Commit : ObjectLike {
@@ -88,18 +87,18 @@ extension Commit : Codable {
 
 extension Commit : Serializable {
   func serialize(encoder: CMPEncoder) {
+    let repo = (encoder.userContext as? Repository)
+
 //    encoder.write("commit")
     // TODO: support keyed containers so we don't have to encode empty field
     encoder.write(parentId ?? Data())
     encoder.write(author.name)
     encoder.write(author.email)
-    encoder.write(author.gpgKey ?? "")
     encoder.write(Int(createdAt.timeIntervalSince1970))
     encoder.write(treeId)
     encoder.write(message)
 
-    if let repo = (encoder.userContext as? Repository),
-      let data = try? repo.gpg.sign(data: self.id, keyName: repo.config?.author.gpgKey) {
+    if case let .some(.some(data)) = try? repo?.gpg.sign(data: self.id, keyName: repo?.config.gpg?.key) {
       encoder.write(data)
     }
   }
@@ -108,15 +107,8 @@ extension Commit : Serializable {
     let maybeParentId: Data = decoder.read()
     let authorName: String = try decoder.read()
     let authorEmail: String = try decoder.read()
-    let authorGpg: String = try decoder.read()
-    let maybeAuthorGpg: String?
-    if authorGpg.isEmpty {
-      maybeAuthorGpg = authorGpg
-    } else {
-      maybeAuthorGpg = nil
-    }
 
-    author = Author(name: authorName, email: authorEmail, gpgKey: maybeAuthorGpg)
+    author = Author(name: authorName, email: authorEmail)
     let createdAtInterval: Int = decoder.read()
     createdAt = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
     treeId = decoder.read()
