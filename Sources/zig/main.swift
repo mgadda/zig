@@ -238,15 +238,20 @@ case let (_, cmdName, args):
   let scriptName = "zig-\(cmdName)"
   let which = Process()
   which.launchPath = "/usr/bin/env"
-  which.arguments = ["which", "-s", scriptName]
+  which.arguments = ["which", scriptName]
+
+  let pipe = Pipe()
+  which.standardOutput = pipe
   which.launch()
   which.waitUntilExit()
   if which.terminationStatus == 0 {
-    let script = Process()
-    script.launchPath = "/usr/bin/env"
-    script.arguments = [scriptName] + args
+    let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)!.trimmingCharacters(in: CharacterSet.newlines)
 
-    script.launch()
+    let cPath = path.withCString { strdup($0) }
+    let cArgs = args.map { $0.withCString { strdup($0) }} + [nil]
+    guard execv(cPath, cArgs) != -1 else {
+      fatalError("Failed to load \(scriptName) with error \(errno)")
+    }
   } else {
     printHelp()
   }
