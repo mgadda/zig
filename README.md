@@ -11,18 +11,25 @@ At the risk of scaring potential useres away, it's critical to note that **Zig i
 
 ## How to use
 
-For now, you'll need to be running macOS and (probably) Xcode 8 or higher. 
+For now, you'll need to be running macOS and (probably) Xcode 8 or higher.
 ```
 git clone https://github.com/mgadda/zig.git
 cd zig
 xcodebuild
 ```
 
+### Dependencies
+
+These tools must be installed and present in your path.
+
+* jq 1.4 or higher
+* A recent version of GnuPG
+
 If all goes well, zig will be placed in your `~/bin` directory, which is hopefully in your shell's $PATH.
 
 ### Commands
 
-**Initialize repository**: `zig init`  
-**Save your changes**: `zig snapshot`  
+**Initialize repository**: `zig init`
+**Save your changes**: `zig snapshot`
 **View a history of changes**: `zig log`
 
