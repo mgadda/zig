@@ -30,11 +30,9 @@ struct Gpg {
     try! Shell.run(path: "/usr/bin/env", arguments: arguments)
 
     defer {
-      // TODO: handle failures here with more grace
-      try! FileManager.default.removeItem(at: dataUrl)
-      try! FileManager.default.removeItem(at: sigUrl)
+      try? FileManager.default.removeItem(at: dataUrl)
+      try? FileManager.default.removeItem(at: sigUrl)
     }
-
     return try Data(contentsOf: sigUrl)
   }
 
@@ -63,9 +61,10 @@ struct Gpg {
 
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
 
-    try FileManager.default.removeItem(at: sigUrl)
-    try FileManager.default.removeItem(at: dataUrl)
-
+    defer {
+      try? FileManager.default.removeItem(at: sigUrl)
+      try? FileManager.default.removeItem(at: dataUrl)
+    }
     return String(data: data, encoding: .utf8)?.range(of: "Good") != nil
   }
 }
