@@ -77,8 +77,9 @@ case let(1, "rawcat", args):
     fatalError("Coud not load object data for \(args[0])")
   }
 
-  print(String(data: objectData, encoding: .utf8)!)
-  
+  FileHandle.standardOutput.write(objectData)
+//  print(objectData.base64EncodedString())
+
 case let (2...3, "cat", args):
   guard let repo = Repository() else {
     exit(1)
