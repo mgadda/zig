@@ -296,7 +296,7 @@ class Repository {
     }
 
     let zigUrl = rootUrl.appendingPathComponent(".zig", isDirectory: true)
-    let validUrls = Set(urls).subtracting(Set(ignoredPaths).union([zignoreUrl, zigUrl]))
+    let validUrls = Set(urls).subtracting(Set(ignoredPaths).union([zigUrl]))
 
     let entries = validUrls.map { (url: URL) -> Entry in
       let attributes = try! FileManager.default.attributesOfItem(atPath: url.path)
