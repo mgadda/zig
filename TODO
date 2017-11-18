@@ -1,8 +1,5 @@
 * handle deserialization errors of config.json more gracefully
-* move urls into Config?
 * define default values for as much of Config as possible should no config be present, error if things that have no reasonable default can not be ascertained
-* search up through tree to find global .zigconfig.json
-* sign hash of objects, not objects
 * integrate pgp library so to avoid shelling out
 * define init story better wrt gpg
   * is there a non-secure mode?
@@ -17,8 +14,12 @@
 * zig status
 * better cli output (including --help)
 * explore peer-to-peer automatic sync'ing of repositories (no central repo required)
-* explore blockchain tech as it applies to zig
+* error handling in CMPDecoder - detect when attempting to read beyond end
+* don't suppress exceptions while reading objects (don't convert Error to Nil)
+* allow relative paths in config.gpg.homedir
 
+* DONE sign hash of object id, not objects
+* DONE search up through tree to find global .zigconfig
 * DONE Support .zig/config - author
 * DONE .zignore
 * DONE resolve (rev-parse)
