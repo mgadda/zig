@@ -190,8 +190,6 @@ class Repository {
 
   /// Load and uncompress raw object Data for object `id`
   func loadObjectData(id: Data) -> Data? {
-    let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
-
     let (objIdPrefix, filename) = splitId(id: id)
 
     let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
