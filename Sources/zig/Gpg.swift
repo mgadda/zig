@@ -19,8 +19,6 @@ struct Gpg {
     let sigUrl = dataUrl.appendingPathExtension("sig")
     try data.write(to: dataUrl)
 
-    let gpg = Process()
-    gpg.launchPath = "/usr/bin/env"
     var arguments = ["gpg"]
     if let keyName = keyName {
       arguments += ["--default-key", "\(keyName)!"]
@@ -29,10 +27,7 @@ struct Gpg {
       arguments += ["--homedir", homedir.path]
     }
     arguments += ["--output", sigUrl.path, "--detach-sign", dataUrl.path]
-    gpg.arguments = arguments
-//    gpg.standardError = FileHandle.nullDevice
-    gpg.launch()
-    gpg.waitUntilExit()
+    try! Shell.run(path: "/usr/bin/env", arguments: arguments)
 
     defer {
       // TODO: handle failures here with more grace

@@ -246,12 +246,7 @@ case let (_, cmdName, args):
   which.waitUntilExit()
   if which.terminationStatus == 0 {
     let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)!.trimmingCharacters(in: CharacterSet.newlines)
-
-    let cPath = path.withCString { strdup($0) }
-    let cArgs = args.map { $0.withCString { strdup($0) }} + [nil]
-    guard execv(cPath, cArgs) != -1 else {
-      fatalError("Failed to load \(scriptName) with error \(errno)")
-    }
+    try Shell.replace(with: path, arguments: args)
   } else {
     printHelp()
   }
