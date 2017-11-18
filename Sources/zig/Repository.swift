@@ -69,25 +69,7 @@ class Repository {
       return nil
     }
 
-    if config.gpg?.homedir == nil {
-      gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
-    } else {
-      gpg = Gpg(homedir: config.gpg?.homedir?.standardized)
-    }
-
-// TODO: delete me
-//    if let configData = try? Data(contentsOf: configUrl) {
-//      let decoder = JSONDecoder()
-//      config = try! decoder.decode(Config.self, from: configData)
-//      if config!.gpg?.homedir == nil {
-//        gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
-//      } else {
-//        gpg = Gpg(homedir: config!.gpg?.homedir?.standardized)
-//      }
-//    } else {
-//      config = nil
-//      gpg = Gpg(homedir: zigUrl.appendingPathComponent("gpg"))
-//    }
+    gpg = Gpg(homedir: config.gpg?.homedir?.standardized)
   }
 
   /// Find all configs from path up to root
