@@ -10,6 +10,22 @@ import Foundation
 import MessagePackEncoder
 import Compression
 
+func findAscending(at url: URL, filename: String) -> [URL] {
+  func _findAscending(url: URL, found: [URL]) -> [URL] {
+    if url.path == "/" {
+      return found
+    } else {
+      let urlWithFilename = url.appendingPathComponent(filename)
+      if FileManager.default.fileExists(atPath: urlWithFilename.path) {
+        return _findAscending(url: url.appendingPathComponent("..").standardized, found: found + [urlWithFilename])
+      } else {
+        return _findAscending(url: url.appendingPathComponent("..").standardized, found: found)
+      }
+    }
+  }
+  return _findAscending(url: url, found: [])
+}
+
 class Repository {
   let rootUrl: URL // working tree
   let HEADUrl: URL // .zig/HEAD
@@ -17,24 +33,88 @@ class Repository {
   let refsUrl: URL // .zig/refs
   let branchHeadsUrl: URL // .zig/refs/heads
   let tagsUrl: URL // .zig/refs/tags
+  let config: Config
+  let gpg: Gpg
 
   private static let fileman = FileManager.default
 
   init?() {
-    if let url = Repository.findRepositoryRoot() {
-      rootUrl = url.standardizedFileURL
-      let zigUrl = rootUrl.appendingPathComponent(".zig", isDirectory: true)
-
-      HEADUrl = zigUrl.appendingPathComponent("HEAD", isDirectory: false)
-      objectDir = zigUrl.appendingPathComponent("objects", isDirectory: true)
-      refsUrl = zigUrl.appendingPathComponent("refs", isDirectory: true)
-      branchHeadsUrl = refsUrl.appendingPathComponent("heads", isDirectory: true)
-      tagsUrl = refsUrl.appendingPathComponent("tags", isDirectory: true)
-
-    } else {
+    guard let url = Repository.findRepositoryRoot() else {
       print("Not a valid zig repository")
       return nil
     }
+
+    rootUrl = url.standardizedFileURL
+    let zigUrl = rootUrl.appendingPathComponent(".zig", isDirectory: true)
+
+    HEADUrl = zigUrl.appendingPathComponent("HEAD", isDirectory: false)
+    objectDir = zigUrl.appendingPathComponent("objects", isDirectory: true)
+    refsUrl = zigUrl.appendingPathComponent("refs", isDirectory: true)
+    branchHeadsUrl = refsUrl.appendingPathComponent("heads", isDirectory: true)
+    tagsUrl = refsUrl.appendingPathComponent("tags", isDirectory: true)
+
+    let repoConfigUrl = zigUrl.appendingPathComponent("config")
+
+    guard Repository.fileman.fileExists(atPath: repoConfigUrl.path) else {
+      print("Missing .zig/config")
+      return nil
+    }
+
+    let configUrls: [URL] = ([repoConfigUrl] + Repository.findConfigs(at: rootUrl)).reversed()
+
+    do {
+      config = try Repository.loadMergedConfigs(at: configUrls)
+    } catch {
+      print(error)
+      return nil
+    }
+
+    gpg = Gpg(homedir: config.gpg?.homedir?.standardized)
+  }
+
+  /// Find all configs from path up to root
+  static func findConfigs(at url: URL) -> [URL] {
+    return findAscending(at: url, filename: ".zigconfig")
+  }
+
+  /// Assumes paths represent json formated files. The files will be merged
+  /// and then decoded into a Config.
+  /// Currently requires jq 1.4 or higher to be in path
+  static func loadMergedConfigs(at paths: [URL]) throws -> Config {
+    // cat file1 file2 fileN | jq '.[0]*.[1]*.[N]' | self
+
+    let cat = Process()
+    cat.launchPath = "/usr/bin/env"
+    cat.arguments = ["cat"] + paths.map { $0.path }
+
+    let jq = Process()
+    jq.launchPath = "/usr/bin/env"
+    let mergeQuery: String = paths
+      .enumerated()
+      .map { (index, _) in ".[\(index)]" }
+      .joined(separator: "*")
+
+    jq.arguments = ["jq", "-c", "-e", "--slurp", mergeQuery]
+    jq.environment = ProcessInfo.processInfo.environment
+
+    let catToJq = Pipe()
+    let jqToZig = Pipe()
+    cat.standardOutput = catToJq
+    jq.standardInput = catToJq
+    jq.standardOutput = jqToZig
+
+    cat.launch()
+    jq.launch()
+    jq.waitUntilExit()
+
+    guard jq.terminationStatus == 0 else {
+      throw ZigError.decodingError("Could not merge configs. Perhaps one of them contained invalid JSON.")
+    }
+
+    let mergedConfigData = jqToZig.fileHandleForReading.readDataToEndOfFile()
+
+    let decoder = JSONDecoder()
+    return try decoder.decode(Config.self, from: mergedConfigData)
   }
 
   var commits: CommitView {
@@ -98,7 +178,7 @@ class Repository {
 //      break
 //    }
 
-    let encoder = CMPEncoder()
+    let encoder = CMPEncoder(userContext: self)
     object.serialize(encoder: encoder)
     if let compressedData = encoder.buffer.compress() {
       objectWriteCount += 1
@@ -110,8 +190,6 @@ class Repository {
 
   /// Load and uncompress raw object Data for object `id`
   func loadObjectData(id: Data) -> Data? {
-    let objectDir = rootUrl.appendingPathComponent(".zig", isDirectory: true).appendingPathComponent("objects", isDirectory: true)
-
     let (objIdPrefix, filename) = splitId(id: id)
 
     let prefixedObjDir = objectDir.appendingPathComponent(objIdPrefix, isDirectory: true)
@@ -124,7 +202,7 @@ class Repository {
 //    let decoder = MessagePackDecoder()
     return loadObjectData(id: id).flatMap {
 //      try? decoder.decode(type, from: $0)
-      let decoder = CMPDecoder(from: $0)      
+      let decoder = CMPDecoder(from: $0, userContext: self)
       return try? T(with: decoder)
     }
   }
@@ -153,7 +231,7 @@ class Repository {
 
     let commit = Commit(
       parentId: parentId,
-      author: Author(name: "Matt Gadda", email: "<mgadda@gmail.com>"), // TODO: move to .zig/config
+      author: config.author,
       createdAt: Date(),
       treeId: topLevelTree.id,
       message: message)
@@ -216,7 +294,7 @@ class Repository {
     }
 
     let zigUrl = rootUrl.appendingPathComponent(".zig", isDirectory: true)
-    let validUrls = Set(urls).subtracting(Set(ignoredPaths).union([zignoreUrl, zigUrl]))
+    let validUrls = Set(urls).subtracting(Set(ignoredPaths).union([zigUrl]))
 
     let entries = validUrls.map { (url: URL) -> Entry in
       let attributes = try! FileManager.default.attributesOfItem(atPath: url.path)
@@ -493,7 +571,7 @@ class Repository {
   }
 
   // TODO: this entire method could be much more easily
-  // implemented in bash
+  // implemented in bash (see scripts/zig-init)
   class func initRepo() -> Repository? {
     let cwdUrl = URL(fileURLWithPath: fileman.currentDirectoryPath)
     let zigDir = cwdUrl.appendingPathComponent(".zig")

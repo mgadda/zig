@@ -1,0 +1,69 @@
+#!/bin/bash
+#/usr/bin/env bash
+
+# Ascend directories until we find file named after the first argument
+# Adapted from: https://stackoverflow.com/questions/9376904/find-file-by-name-up-the-directory-tree-using-bash
+function dnif {
+  local filename="$1"
+  local current_dir=`pwd`
+  local found=1
+  while [ "$current_dir" != "/" ]; do
+    current_dir=`dirname "$current_dir"`
+    if [ -e "$current_dir/$filename" ]; then
+      found=0
+      break
+    fi
+  done
+  return $found
+}
+
+function create_config {
+  local name
+  read -p "name: " name
+
+  local email
+  read -p "email: " email
+
+  local gpg_key
+  read -p "gpg key (optional): " gpg_key
+
+  local config="{
+    \"author\": {
+      \"name\": \"$name\",
+      \"email\": \"$email\"
+    }
+  }"
+  if [ ! -z "$gpg_key" ]; then
+    config=$(echo "$config" | jq ". + {gpg: {key: \"$gpg_key\"}}")
+  fi
+  mkdir -p .zig
+  echo "$config" > .zig/config
+}
+
+function create_empty_config {
+  mkdir -p .zig && echo "{}" > .zig/config
+}
+
+function init_repository {
+  # Look .zigconfig in ancestors, if not found, make one
+  if ! dnif ".zigconfig"; then
+    create_config
+  else
+    create_empty_config
+  fi
+
+  mkdir -p .zig/refs/heads
+  mkdir -p .zig/refs/tags
+  mkdir -p .zig/gpg
+  chmod 0700 .zig/gpg
+  echo "refs/heads/master" > .zig/HEAD
+  touch .zig/refs/heads/master
+}
+
+function main {
+  if [ ! -e .zig ]; then init_repository "$@"
+  else echo "Current directory already contains a zig repository"
+  fi
+}
+
+main "$@"

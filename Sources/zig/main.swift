@@ -38,11 +38,11 @@ case (_, "writedummy", _):
 //  var file = try! FileHandle(forWritingTo: url)
 //  blob.serialize(file: &file)
 //  exit(0)
-
-case (0, "init", _):
-  guard let _ = Repository.initRepo() else {
-    exit(1)
-  }
+  
+//case (0, "init", _):
+//  guard let _ = Repository.initRepo() else {
+//    exit(1)
+//  }
 
 case let (1...2, "hash", args):
   guard let repo = Repository() else {
@@ -77,8 +77,9 @@ case let(1, "rawcat", args):
     fatalError("Coud not load object data for \(args[0])")
   }
 
-  print(String(data: objectData, encoding: .utf8)!)
-  
+  FileHandle.standardOutput.write(objectData)
+//  print(objectData.base64EncodedString())
+
 case let (2...3, "cat", args):
   guard let repo = Repository() else {
     exit(1)
@@ -238,15 +239,15 @@ case let (_, cmdName, args):
   let scriptName = "zig-\(cmdName)"
   let which = Process()
   which.launchPath = "/usr/bin/env"
-  which.arguments = ["which", "-s", scriptName]
+  which.arguments = ["which", scriptName]
+
+  let pipe = Pipe()
+  which.standardOutput = pipe
   which.launch()
   which.waitUntilExit()
   if which.terminationStatus == 0 {
-    let script = Process()
-    script.launchPath = "/usr/bin/env"
-    script.arguments = [scriptName] + args
-
-    script.launch()
+    let path = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)!.trimmingCharacters(in: CharacterSet.newlines)
+    try Shell.replace(with: path, arguments: args)
   } else {
     printHelp()
   }

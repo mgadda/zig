@@ -51,7 +51,7 @@ struct Commit : ObjectLike {
       out += "Tree: \(treeId.base16EncodedString())"
       out += "\nParent: " + (parentId?.base16EncodedString() ?? "(no parent)") + "\n"
     }
-    out += "Author: \(author.name) \(author.email)\n"
+    out += "Author: \(author.name) <\(author.email)>\n"
     out += "Date: " + createdAt.debugDescription + "\n\n"
     out += "  " + message + "\n"
     return out
@@ -87,20 +87,27 @@ extension Commit : Codable {
 
 extension Commit : Serializable {
   func serialize(encoder: CMPEncoder) {
-    // TODO: support keyed containers so we don't have to encode empty field
+    let repo = (encoder.userContext as? Repository)
+
 //    encoder.write("commit")
+    // TODO: support keyed containers so we don't have to encode empty field
     encoder.write(parentId ?? Data())
     encoder.write(author.name)
     encoder.write(author.email)
     encoder.write(Int(createdAt.timeIntervalSince1970))
     encoder.write(treeId)
-    encoder.write(message)    
+    encoder.write(message)
+
+    if case let .some(.some(data)) = try? repo?.gpg.sign(data: self.id, keyName: repo?.config.gpg?.key) {
+      encoder.write(data)
+    }
   }
 
   init(with decoder: CMPDecoder) throws {
     let maybeParentId: Data = decoder.read()
     let authorName: String = try decoder.read()
     let authorEmail: String = try decoder.read()
+
     author = Author(name: authorName, email: authorEmail)
     let createdAtInterval: Int = decoder.read()
     createdAt = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
@@ -112,5 +119,14 @@ extension Commit : Serializable {
     } else {
       parentId = maybeParentId
     }
+
+    let signature: Data = decoder.read()
+
+    if let repo = decoder.userContext as? Repository {
+      if !(try repo.gpg.verify(data: id, signature: signature)) {
+        throw ZigError.decodingError("WARNING: Object with id \(id) may have been tampered with")
+      }
+    }
+
   }
 }

@@ -12,4 +12,6 @@ enum ZigError : Error {
   case dataError(String)
   case genericError(String)
   case decodingError(String)
+  case noConfigError
+  case shellError(Int32)
 }
