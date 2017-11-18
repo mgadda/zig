@@ -1,6 +1,4 @@
-* handle deserialization errors of config.json more gracefully
 * define default values for as much of Config as possible should no config be present, error if things that have no reasonable default can not be ascertained
-* integrate pgp library so to avoid shelling out
 * define init story better wrt gpg
   * is there a non-secure mode?
   * upgrade/down to/from secure repo
@@ -8,6 +6,7 @@
   * allow use of keys with passphrase
 * separate targets/binaries for each zig command
   * bash/binary commands should be on equal standing
+* handle deserialization errors of config.json more gracefully
 * Support JSON output for all commands
 * zig diff (working tree against commit or HEAD)
 * unit tests
@@ -17,6 +16,7 @@
 * error handling in CMPDecoder - detect when attempting to read beyond end
 * don't suppress exceptions while reading objects (don't convert Error to Nil)
 * allow relative paths in config.gpg.homedir
+* integrate pgp library so to avoid shelling out
 
 * DONE sign hash of object id, not objects
 * DONE search up through tree to find global .zigconfig
