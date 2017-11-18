@@ -38,11 +38,11 @@ case (_, "writedummy", _):
 //  var file = try! FileHandle(forWritingTo: url)
 //  blob.serialize(file: &file)
 //  exit(0)
-
-case (0, "init", _):
-  guard let _ = Repository.initRepo() else {
-    exit(1)
-  }
+  
+//case (0, "init", _):
+//  guard let _ = Repository.initRepo() else {
+//    exit(1)
+//  }
 
 case let (1...2, "hash", args):
   guard let repo = Repository() else {
