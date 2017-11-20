@@ -31,6 +31,7 @@ struct Blob : ObjectLike, Codable {
     }
   }
 
+  // TODO: can this be removed?
   func serialize(file: inout FileHandle) {
     defer { file.closeFile() }
 

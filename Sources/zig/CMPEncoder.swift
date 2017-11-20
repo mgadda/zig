@@ -48,8 +48,15 @@ fileprivate struct CMPJump {
   init() {}
 }
 
+// TODO: why is this necessary?
+class CMPKeyedDecoderContainer {
+  fileprivate var container: [String : Serializable] = [:]
+  func write<T: Serializable>(key: String, value: T) {
+    container[key] = value
+  }
+}
+
 class CMPEncoder {
-//  let context: UnsafeMutablePointer<cmp_ctx_t>
   var context = cmp_ctx_t()
   var buffer = Data()
 
@@ -77,16 +84,9 @@ class CMPEncoder {
 
   /// Append data to CMPEncoder's internal buffer
   func write(_ data: UnsafeRawPointer, _ count: Int) -> Int {
-    // if this is too slow, we need to blit memory with copyBytes
+    // if this is too slow, we need to blit memory with copyBytes and using bufferPosition
     buffer.append(data.bindMemory(to: UInt8.self, capacity: count), count: count)
     return count
-//    if offset + count >= bufferSize {
-////      buffer.all
-//    }
-//    buffer.withUnsafeMutableBytes { (bufferPtr: UnsafeMutablePointer<UInt8>) in
-//      UnsafeMutableRawPointer(bufferPtr).advanced(by: offset).copyBytes(from: data, count: count)
-//    }
-//    offset += count
   }
 
   func skip(count: Int) -> Bool {
@@ -100,6 +100,10 @@ class CMPEncoder {
 
   func write(_ value: Int64) {
     cmp_write_s64(&context, value)
+  }
+
+  func write(_ value: Double) {
+    cmp_write_double(&context, value)
   }
 
   func write(_ value: Data) {
@@ -119,25 +123,36 @@ class CMPEncoder {
     }
   }
 
-  func write<T: Serializable, U: Serializable>(_ values: [T : U]) {
+  func write<T: Serializable>(_ values: [String : T?]) {
     cmp_write_map(&context, UInt32(values.count))
     values.forEach { (key, value) in
+      guard value != nil else { return }
       key.serialize(encoder: self)
-      value.serialize(encoder: self)
+      value!.serialize(encoder: self)
     }
   }
 
   func write(_ value: String) {
     let data = value.data(using: .utf8)!
-    data.withUnsafeBytes({ bytes in
+    _ = data.withUnsafeBytes({ bytes in
       cmp_write_str(&context, bytes, UInt32(data.count))
     })
+  }
 
+  func keyedContainer() -> CMPKeyedDecoderContainer {
+    return CMPKeyedDecoderContainer()
+  }
+
+  func write(_ value: CMPKeyedDecoderContainer) {
+    cmp_write_map(&context, UInt32(value.container.count))
+    value.container.forEach { key, value in
+      write(key)
+      value.serialize(encoder: self)
+    }
   }
 }
 
 class CMPDecoder {
-  //  let context: UnsafeMutablePointer<cmp_ctx_t>
   var context = cmp_ctx_t()
   var buffer: Data
   let userContext: Any?
@@ -185,6 +200,12 @@ class CMPDecoder {
     return value
   }
 
+  func read() -> Double {
+    var value: Double = 0.0
+    cmp_read_double(&context, &value)
+    return value
+  }
+
   func read() -> Data {
     var size: UInt32 = 0
     freezingPosition { cmp_read_bin_size(&context, &size) }
@@ -217,6 +238,7 @@ class CMPDecoder {
     return String(data: value.subdata(in: 0..<(value.count - 1)), encoding: .utf8)!
   }
 
+  /// Read a homoegeneous array of values
   func read<T : Serializable>() throws -> [T] {
     var size: UInt32 = 0
     cmp_read_array(&context, &size)
@@ -225,33 +247,65 @@ class CMPDecoder {
     }
   }
 
-  func read<T : Serializable, U : Serializable>() throws -> [T : U] {
+  /// Read heterogeneous dictionary of Serializable values
+  func read(_ fields: [String : Serializable.Type]) throws -> [String : Any] {
     var size: UInt32 = 0
     cmp_read_map(&context, &size)
-    let keysAndValues = try Array((0..<size)).flatMap { (_) -> (T, U) in
-      (try T(with: self), try U(with: self))
+    let keysAndValues = try Array((0..<size)).flatMap { (_) -> (String, Serializable) in
+      let key = try String(with: self)
+      let value = (try fields[key]?.init(with: self))!
+      return (key, value)
     }
-    return Dictionary<T, U>(uniqueKeysWithValues: keysAndValues)
+    return Dictionary<String, Serializable>(uniqueKeysWithValues: keysAndValues)
+  }
+
+  /// Deserialize a homogeneous map of String -> T (probably of limited utility)
+  /// This method should not be confused with a type-less keyed decoding container
+  func read<T : Serializable>() throws -> [String : T] {
+    var size: UInt32 = 0
+    cmp_read_map(&context, &size)
+    let keysAndValues = try Array((0..<size)).flatMap { (_) -> (String, T) in
+      (try String(with: self), try T(with: self))
+    }
+    return Dictionary<String, T>(uniqueKeysWithValues: keysAndValues)
   }
 }
 
+extension Data : Serializable {
+  func serialize(encoder: CMPEncoder) {
+    encoder.write(self)
+  }
+  init(with decoder: CMPDecoder) throws {
+    self = decoder.read()
+  }
+}
 
-/*
- bufferSize = N
+extension String : Serializable {
+  func serialize(encoder: CMPEncoder) {
+    encoder.write(self)
+  }
+  init(with decoder: CMPDecoder) throws {
+    self = try decoder.read()
+  }
+}
 
- written = cmp_write_int(i)
+extension Double : Serializable {
+  func serialize(encoder: CMPEncoder) {
+    encoder.write(self)
+  }
+  init(with decoder: CMPDecoder) throws {
+    self = decoder.read()
+  }
+}
 
- if (ctx.buf - buffer) / bufferSize > 0.80 (80%)
- resize buffer
-
- writer(dst, src, count) {
- memcpy(dst, src, count)
- dst += count
- }
-
- //  memcpy(ctx?.pointee.buf, data, count)
-
- */
+extension Int : Serializable {
+  func serialize(encoder: CMPEncoder) {
+    encoder.write(self)
+  }
+  init(with decoder: CMPDecoder) throws {
+    self = decoder.read()
+  }
+}
 
 func cmpFileWriter(ctx: UnsafeMutablePointer<cmp_ctx_s>!, data: UnsafeRawPointer!, count: Int) -> Int {
   let fileHandlePtr = ctx.pointee.buf.bindMemory(to: FileHandle.self, capacity: 1)

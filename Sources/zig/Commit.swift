@@ -13,6 +13,23 @@ struct Author : Codable {
   let email: String
 }
 
+extension Author : Serializable {
+  func serialize(encoder: CMPEncoder) {
+    let container = encoder.keyedContainer()
+    container.write(key: "name", value: name)
+    container.write(key: "email", value: email)
+    encoder.write(container)
+  }
+  init(with decoder: CMPDecoder) throws {
+    let container = try decoder.read([
+      "name": String.self,
+      "email": String.self
+    ])
+    name = container["name"]! as! String
+    email = container["email"]! as! String
+  }
+}
+
 struct Commit : ObjectLike {
 
   let parentId: Data?
@@ -88,45 +105,46 @@ extension Commit : Codable {
 extension Commit : Serializable {
   func serialize(encoder: CMPEncoder) {
     let repo = (encoder.userContext as? Repository)
+    let container = encoder.keyedContainer()
 
-//    encoder.write("commit")
-    // TODO: support keyed containers so we don't have to encode empty field
-    encoder.write(parentId ?? Data())
-    encoder.write(author.name)
-    encoder.write(author.email)
-    encoder.write(Int(createdAt.timeIntervalSince1970))
-    encoder.write(treeId)
-    encoder.write(message)
-
-    if case let .some(.some(data)) = try? repo?.gpg.sign(data: self.id, keyName: repo?.config.gpg?.key) {
-      encoder.write(data)
+    if parentId != nil {
+      container.write(key: "parentId", value: parentId!)
     }
+
+    container.write(key: "author", value: author)
+    container.write(key: "createdAt", value: createdAt.timeIntervalSince1970)
+    container.write(key: "treeId", value: treeId)
+    container.write(key: "message", value: message)
+
+    if case let .some(.some(signature)) = try? repo?.gpg.sign(data: self.id, keyName: repo?.config.gpg?.key) {
+      container.write(key: "signature", value: signature)
+    }
+
+    encoder.write(container)
   }
 
   init(with decoder: CMPDecoder) throws {
-    let maybeParentId: Data = decoder.read()
-    let authorName: String = try decoder.read()
-    let authorEmail: String = try decoder.read()
+    let container = try decoder.read([
+      "parentId": Data.self,
+      "author": Author.self,
+      "createdAt": TimeInterval.self,
+      "treeId": Data.self,
+      "message": String.self,
+      "signature": Data.self
+    ])
 
-    author = Author(name: authorName, email: authorEmail)
-    let createdAtInterval: Int = decoder.read()
-    createdAt = Date(timeIntervalSince1970: TimeInterval(createdAtInterval))
-    treeId = decoder.read()
-    message = try decoder.read()
+    parentId = container["parentId"] as? Data
+    author = container["author"] as! Author
+    createdAt = Date(timeIntervalSince1970: container["createdAt"] as! TimeInterval)
+    treeId = container["treeId"] as! Data
+    message = container["message"] as! String
 
-    if maybeParentId.count == 0 {
-      parentId = nil
-    } else {
-      parentId = maybeParentId
-    }
+    if let repo = decoder.userContext as? Repository,
+       let signature = container["signature"] as? Data {
 
-    let signature: Data = decoder.read()
-
-    if let repo = decoder.userContext as? Repository {
       if !(try repo.gpg.verify(data: id, signature: signature)) {
         throw ZigError.decodingError("WARNING: Object with id \(id) may have been tampered with")
       }
     }
-
   }
 }
