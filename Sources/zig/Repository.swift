@@ -35,6 +35,7 @@ class Repository {
   let tagsUrl: URL // .zig/refs/tags
   let config: Config
   let gpg: Gpg
+  let objectCache = ObjectCache()
 
   private static let fileman = FileManager.default
 
