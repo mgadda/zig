@@ -36,19 +36,19 @@ If all goes well, zig will be placed in your `~/bin` directory, which is hopeful
 
 ### Commands
 
-**Initialize repository**: `zig init`
-**Save your changes**: `zig snapshot`
-**View a history of changes**: `zig log`
-**View files which have changed since last snapshot**: `zig status`
-**Ignore a file, directory or glob:** `zig ignore [filename]`
-**Create a branch:** `zig branch [name]`
-**Create a tag:** `zig tag [name] [branch]|[commit-id]|[tag]|HEAD`
+**Initialize repository**: `zig init`  
+**Save your changes**: `zig snapshot`  
+**View a history of changes**: `zig log`  
+**View files which have changed since last snapshot**: `zig status`  
+**Ignore a file, directory or glob:** `zig ignore [filename]`  
+**Create a branch:** `zig branch [name]`  
+**Create a tag:** `zig tag [name] [branch]|[commit-id]|[tag]|HEAD`  
 **Checkout a commit or branch:** `zig checkout [commit]|[branch]`
 
 ### Low-level commands
 
-**View object from database:**: `zig cat commit|tree|blob [object-id] [--json]`
-**View raw object data from database:** `zig rawcat [object-id] | hexdump`
-**Resolve a string into a commit:** `zig resolve [branch]|[commit-id]|[tag]|HEAD`
+**View object from database:**: `zig cat commit|tree|blob [object-id] [--json]`  
+**View raw object data from database:** `zig rawcat [object-id] | hexdump`  
+**Resolve a string into a commit:** `zig resolve [branch]|[commit-id]|[tag]|HEAD`  
 **Store a file or tree of files in the database:** `zig hash [file]|[directory]`
 
