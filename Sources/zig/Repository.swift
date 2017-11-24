@@ -35,6 +35,7 @@ class Repository {
   let tagsUrl: URL // .zig/refs/tags
   let config: Config
   let gpg: Gpg
+  let objectCache = ObjectCache()
 
   private static let fileman = FileManager.default
 
@@ -207,14 +208,18 @@ class Repository {
     }
   }
 
-  func hashFile(filename: String) -> ObjectLike {
+  func hashFile(filename: String, saveObject: Bool = true) -> ObjectLike {
     // TODO: check that file exists and return nil if not
     let path = URL(fileURLWithPath: Repository.fileman.currentDirectoryPath)
       .appendingPathComponent(filename)
 
     let object: ObjectLike
     if path.hasDirectoryPath {
-      object = _snapshot(startingAt: path)
+      object = _snapshot(startingAt: path) { (url, object) in
+        if saveObject {
+          writeObject(object: object)
+        }
+      }
     } else {
       let content = try! Data(contentsOf: path)
       object = Blob(content: content)
@@ -224,7 +229,9 @@ class Repository {
   }
 
   func snapshot(message: String) -> ObjectLike {
-    let topLevelTree = _snapshot(startingAt: rootUrl)
+    let topLevelTree = _snapshot(startingAt: rootUrl) { (url, object) in
+      writeObject(object: object)
+    }
 
     let headContents = getHEADContents()
     let parentId: Data? = resolve(.head)?.commit?.base16DecodedData()
@@ -281,7 +288,10 @@ class Repository {
     }
   }
 
-  private func _snapshot(startingAt dir: URL) -> ObjectLike {
+  // TODO: generalize _snapshot such that traversal of tree and creation of objects
+  // is distinct from what we _do_ with these objects. _snapshot should accept
+  // a function as an argument that performs side-effects as needed.
+  private func _snapshot(startingAt dir: URL, handleResult: (URL, ObjectLike) -> Void) -> ObjectLike {
     let urls = try! Repository.fileman.contentsOfDirectory(at: dir, includingPropertiesForKeys: [], options: FileManager.DirectoryEnumerationOptions.skipsSubdirectoryDescendants).map { $0.standardizedFileURL } // removes "private" from /tmp urls
 
     // return (url does not match zignore) and != rootUrl
@@ -304,19 +314,21 @@ class Repository {
       if url.hasDirectoryPath {
 
         // recurse to produce object (tree or blob)
-        object = _snapshot(startingAt: url)
-        writeObject(object: object)
+        object = _snapshot(startingAt: url, handleResult: handleResult)
+        writeObject(object: object) // this is duplicative of writeObject below on line 327
         return Entry(permissions: perms, objectId: object.id, objectType: "tree", name: url.lastPathComponent)        
 
       } else {
         object = Blob(content: try! Data(contentsOf: url))
-        writeObject(object: object)
+        handleResult(url, object)
+//        writeObject(object: object)
         return Entry(permissions: perms, objectId: object.id, objectType: "blob", name: url.lastPathComponent)
       }
     }
 
     let topLevelTree = Tree(entries: entries)
-    writeObject(object: topLevelTree)
+    handleResult(dir, topLevelTree)
+//    writeObject(object: topLevelTree)
     return topLevelTree
   }
 
@@ -570,8 +582,7 @@ class Repository {
     return resolve(.unknown(ref))
   }
 
-  // TODO: this entire method could be much more easily
-  // implemented in bash (see scripts/zig-init)
+  @available(*, deprecated, message: "use zig-init")
   class func initRepo() -> Repository? {
     let cwdUrl = URL(fileURLWithPath: fileman.currentDirectoryPath)
     let zigDir = cwdUrl.appendingPathComponent(".zig")
@@ -621,6 +632,83 @@ class Repository {
       return
     }
     trounce(branchURL, content: commitId.data(using: .utf8)!)
+  }
+
+  // Snapshot but for trees. Traverses trees.
+  private func traverseIds(tree: Tree, url: URL, handleObject: (Object) -> Void) {
+    tree.entries.forEach { entry in
+      switch entry.objectType {
+      case "tree":
+        let treeUrl = url.appendingPathComponent(entry.name)
+        handleObject(Object(path: treeUrl.path, id: entry.objectId))
+        guard let tree = readObject(id: entry.objectId, type: Tree.self) else {
+          fatalError("Corrupt object database. Missing object with id \(entry.objectId)")
+        }
+        traverseIds(tree: tree, url: treeUrl, handleObject: handleObject)
+      case "blob":
+        let blobUrl = url.appendingPathComponent(entry.name)
+        handleObject(Object(path: blobUrl.path, id: entry.objectId))
+
+      default: break
+      }
+    }
+  }
+
+  func status(ref: Reference) {
+    var workingObjects: Set<Object> = []
+    _ = _snapshot(startingAt: rootUrl) { (url, object) in
+      workingObjects.insert(Object(path: url.path, id: object.id))
+    }
+
+    guard let commitId = resolve(ref)?.commit?.base16DecodedData() else {
+      fatalError("Could not resolve \(ref)")
+    }
+
+    guard
+      let commit = readObject(id: commitId, type: Commit.self),
+      let tree = readObject(id: commit.treeId, type: Tree.self) else {
+      fatalError("Corrupt object database.")
+    }
+
+    var repoObjects: Set<Object> = [Object(path: rootUrl.path, id: tree.id)]
+    traverseIds(tree: tree, url: rootUrl) { repoObjects.insert($0) }
+
+    let filesAdded = Diff.added(old: repoObjects, new: workingObjects).map { Change.added($0.path, $0.id) }
+    let filesRemoved = Diff.removed(old: repoObjects, new: workingObjects).map { Change.removed($0.path, $0.id) }
+    let filesModified = Diff.modified(old: repoObjects, new: workingObjects).map { keyValue -> Change in
+      let unorderedPaths = Array(keyValue.value)
+      let from = unorderedPaths[0]
+      let to = unorderedPaths[1]
+      return Change.modified(keyValue.key, from: from.id, to: to.id)
+    }
+    let filesRenamed = Diff.renamed(old: repoObjects, new: workingObjects).map { keyValue -> Change in
+      let unorderedIds = Array(keyValue.value)
+      let from = unorderedIds[0]
+      let to = unorderedIds[1]
+      return Change.renamed(from: from.path, to: to.path, id: keyValue.key.base16DecodedData())
+    }
+    let changes = filesAdded + filesRemoved + filesModified + filesRenamed
+
+    changes.forEach { change in
+      switch change {
+      case let .added(path, _):
+        print("\tnew file:\t\(path)")
+      case let .removed(path, _):
+        print("\tdeleted:\t\(path)")
+      case let .modified(path, _, _):
+        print("\tchanged:\t\(path)")
+      case let .renamed(from, to, _):
+        print("\trenamed:\t\(from) to \(to)")
+      }
+    }
+
+    /*
+     make light-weight snapshot current set of files: ids + path/names
+     resolve ref to commit, then to tree, then traverse tree to create another
+     light-weight snapshot
+     compare snapshots to produce status
+     */
+
   }
 
 //  func show(_ path: String, ref: Reference) {

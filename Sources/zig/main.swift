@@ -234,6 +234,12 @@ case let(_, "branch", args):
   branchArgs.removeFirst()
 
   repo.createBranch(name, ref: branchArgs.first.map { .unknown($0) } )
+case (_, "status", _):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+
+  repo.status(ref: .head)
 
 case let (_, cmdName, args):
   let scriptName = "zig-\(cmdName)"
