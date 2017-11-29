@@ -240,6 +240,12 @@ case (_, "status", _):
   }
 
   repo.status(ref: .head)
+case (_, "diff", _):
+  guard let repo = Repository() else {
+    exit(1)
+  }
+
+  repo.diff(ref: .head)
 
 case let (_, cmdName, args):
   let scriptName = "zig-\(cmdName)"

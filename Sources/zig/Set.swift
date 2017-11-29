@@ -16,5 +16,11 @@ extension Set {
     }
     return groups
   }
+
+  func groupBy<S: Hashable>(fn: (Element) -> S) -> [S : Set<Element>] {
+    return groupBy { element in
+      (fn(element), element)
+    }
+  }
 }
 

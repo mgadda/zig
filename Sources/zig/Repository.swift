@@ -640,24 +640,27 @@ class Repository {
       switch entry.objectType {
       case "tree":
         let treeUrl = url.appendingPathComponent(entry.name)
-        handleObject(Object(path: treeUrl.path, id: entry.objectId))
+        handleObject(Object(path: treeUrl.path, id: entry.objectId, type: .directory))
         guard let tree = readObject(id: entry.objectId, type: Tree.self) else {
           fatalError("Corrupt object database. Missing object with id \(entry.objectId)")
         }
         traverseIds(tree: tree, url: treeUrl, handleObject: handleObject)
       case "blob":
         let blobUrl = url.appendingPathComponent(entry.name)
-        handleObject(Object(path: blobUrl.path, id: entry.objectId))
+        handleObject(Object(path: blobUrl.path, id: entry.objectId, type: .file))
 
       default: break
       }
     }
   }
 
-  func status(ref: Reference) {
+  func changeset(ref: Reference) -> [Change] {
     var workingObjects: Set<Object> = []
     _ = _snapshot(startingAt: rootUrl) { (url, object) in
-      workingObjects.insert(Object(path: url.path, id: object.id))
+      guard let fileType = Object.FileType(from: object.type) else {
+        fatalError("BUG: Unexpected object type \"\(object.type)\"")
+      }
+      workingObjects.insert(Object(path: url.path, id: object.id, type: fileType))
     }
 
     guard let commitId = resolve(ref)?.commit?.base16DecodedData() else {
@@ -667,49 +670,78 @@ class Repository {
     guard
       let commit = readObject(id: commitId, type: Commit.self),
       let tree = readObject(id: commit.treeId, type: Tree.self) else {
-      fatalError("Corrupt object database.")
+        fatalError("Corrupt object database.")
     }
 
-    var repoObjects: Set<Object> = [Object(path: rootUrl.path, id: tree.id)]
+    var repoObjects: Set<Object> = [Object(path: rootUrl.path, id: tree.id, type: .directory)]
     traverseIds(tree: tree, url: rootUrl) { repoObjects.insert($0) }
 
-    let filesAdded = Diff.added(old: repoObjects, new: workingObjects).map { Change.added($0.path, $0.id) }
-    let filesRemoved = Diff.removed(old: repoObjects, new: workingObjects).map { Change.removed($0.path, $0.id) }
-    let filesModified = Diff.modified(old: repoObjects, new: workingObjects).map { keyValue -> Change in
-      let unorderedPaths = Array(keyValue.value)
-      let from = unorderedPaths[0]
-      let to = unorderedPaths[1]
-      return Change.modified(keyValue.key, from: from.id, to: to.id)
+    let filesAdded = Diff.added(old: repoObjects, new: workingObjects).map {
+      Change.added(path: $0.value.path, id: $0.value.id, fileType: $0.value.type)
     }
-    let filesRenamed = Diff.renamed(old: repoObjects, new: workingObjects).map { keyValue -> Change in
-      let unorderedIds = Array(keyValue.value)
-      let from = unorderedIds[0]
-      let to = unorderedIds[1]
-      return Change.renamed(from: from.path, to: to.path, id: keyValue.key.base16DecodedData())
-    }
-    let changes = filesAdded + filesRemoved + filesModified + filesRenamed
 
-    changes.forEach { change in
-      switch change {
-      case let .added(path, _):
-        print("\tnew file:\t\(path)")
-      case let .removed(path, _):
-        print("\tdeleted:\t\(path)")
-      case let .modified(path, _, _):
-        print("\tchanged:\t\(path)")
-      case let .renamed(from, to, _):
-        print("\trenamed:\t\(from) to \(to)")
+    let filesRemoved = Diff.removed(old: repoObjects, new: workingObjects).map {
+      Change.removed(path: $0.value.path, id: $0.value.id, fileType: $0.value.type)
+    }
+
+    func unpackDiffableSet<T>(diffs: Set<Diffable<T>>) -> (from: T, to: T) {
+      let unorderedPaths = Array(diffs)
+      switch (unorderedPaths[0], unorderedPaths[1]) {
+      case let (.left(from), .right(to)):
+        return (from: from, to: to)
+      case let (.right(to), .left(from)):
+        return (from: from, to: to)
+      default:
+        fatalError("BUG: found two left or two right values while diffing")
       }
     }
 
-    /*
-     make light-weight snapshot current set of files: ids + path/names
-     resolve ref to commit, then to tree, then traverse tree to create another
-     light-weight snapshot
-     compare snapshots to produce status
-     */
+    let filesModified = Diff.modified(old: repoObjects, new: workingObjects).map { keyValue -> Change in
+      let diff = unpackDiffableSet(diffs: keyValue.value)
 
+      return Change.modified(path: keyValue.key, from: diff.from.id, to: diff.to.id, fromFileType: diff.from.type, toFileType: diff.to.type)
+    }
+    let filesRenamed = Diff.renamed(old: repoObjects, new: workingObjects).map { keyValue -> Change in
+      let diff = unpackDiffableSet(diffs: keyValue.value)
+
+      return Change.renamed(from: diff.from.path, to: diff.to.path, id: keyValue.key.base16DecodedData(), fromFileType: diff.from.type, toFileType: diff.to.type)
+    }
+    return filesAdded + filesRemoved + filesModified + filesRenamed
   }
+
+  func status(ref: Reference) {
+    changeset(ref: ref).forEach { change in
+      switch change {
+      case let .added(path, _, _):
+        print("\tnew file:\t\(path)")
+      case let .removed(path, _, _):
+        print("\tdeleted:\t\(path)")
+      case let .modified(path, _, _, _, _):
+        print("\tchanged:\t\(path)")
+      case let .renamed(from, to, _, _, _):
+        print("\trenamed:\t\(from) to \(to)")
+      }
+    }
+  }
+
+  /// Find difference between working copy and ref
+  func diff(ref: Reference) {
+    let changes = changeset(ref: ref)
+    changes.forEach { change in
+      switch change {
+      case let .modified(path, from, _, .file, .file):
+        if let fromBlob = readObject(id: from, type: Blob.self) {
+            let difference = Diff.compareBlobs(old: fromBlob, new: path)
+          print(path)
+          print(String(data: difference, encoding: .utf8)!)
+        }
+      default: break
+      }
+    }
+  }
+  func diff(left: Reference, right: Reference) {}
+  func diff(left: Blob, right: Blob) {}
+  func diff(left: Tree, right: Tree) {}
 
 //  func show(_ path: String, ref: Reference) {
 ////    let showUrl = rootUrl.appendingPathComponent(path)
